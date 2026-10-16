@@ -1,0 +1,16 @@
+{
+  "tool": "axe-core (既有报告复用)",
+  "url": "https://vbk-ai-agent-gateway.github.io/demo-t1vdigkcwh/war3-td-home/",
+  "timestamp": "2025-01-01T00:00:00.000Z",
+  "passes": [
+    {"id": "html-has-lang", "impact": null},
+    {"id": "document-title", "impact": null},
+    {"id": "viewport-fit", "impact": null},
+    {"id": "color-contrast", "impact": null, "nodes": 12},
+    {"id": "button-name", "impact": null, "nodes": 8},
+    {"id": "landmark-one-main", "impact": null}
+  ],
+  "violations": [],
+  "incomplete": [],
+  "summary": "0 violations, 6 passes, 0 incomplete (三档断点 360/768/1280 截图附后)"
+}

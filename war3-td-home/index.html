@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>战火塔防 · War3 风格塔防</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    font-family:"Microsoft YaHei",system-ui,sans-serif;
+    background:#0a0e14; color:#e8dcc0; overflow:hidden;
+  }
+  /* ===== 层级约定：bg=0 ui=9999 ===== */
+  #bg-layer { position:fixed; inset:0; z-index:0; pointer-events:none; user-select:none; }
+  #bg-canvas { width:100%; height:100%; display:block; }
+
+  #ui-layer {
+    position:fixed; inset:0; z-index:9999;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:18px; padding:24px;
+    background:radial-gradient(ellipse at center, rgba(10,14,20,.25), rgba(10,14,20,.72));
+  }
+  #ui-layer.hidden { display:none; }
+
+  h1.title {
+    font-size:clamp(28px,6vw,56px); letter-spacing:6px;
+    color:#f5d78e; text-shadow:0 0 18px rgba(245,160,60,.55), 0 3px 0 #5a3a12;
+  }
+  .subtitle { color:#9db2c8; font-size:14px; margin-top:-8px; }
+
+  .btn {
+    pointer-events:auto; cursor:pointer; z-index:10000;
+    min-width:260px; padding:16px 34px;
+    font-size:22px; letter-spacing:4px; color:#fff8e7;
+    background:linear-gradient(180deg,#8a5a1e,#5c3a10);
+    border:2px solid #e8b45a; border-radius:8px;
+    box-shadow:0 4px 16px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.25);
+    transition:transform .12s, filter .12s;
+  }
+  .btn:hover { transform:translateY(-2px); filter:brightness(1.2); }
+  .btn:active { transform:translateY(1px); }
+  .btn.primary { background:linear-gradient(180deg,#b3762a,#7a4c12);
+                 border-color:#ffd98a; font-size:26px; }
+  .btn.small { min-width:0; padding:10px 20px; font-size:15px; letter-spacing:2px; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; transform:none; filter:none; }
+
+  .race-grid,.map-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:14px; width:min(720px,92vw);
+  }
+  .card {
+    pointer-events:auto; cursor:pointer; z-index:10000;
+    padding:20px 12px; text-align:center; border-radius:10px;
+    background:rgba(20,28,40,.85); border:2px solid #4a5b70; transition:.15s;
+  }
+  .card:hover { border-color:#e8b45a; background:rgba(45,34,16,.9);
+                transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,.6); }
+  .card.selected { border-color:#ffd98a; background:rgba(70,50,18,.95); }
+  .card .icon { font-size:40px; display:block; margin-bottom:8px; }
+  .card .name { font-size:20px; color:#f5d78e; letter-spacing:3px; }
+  .card .desc { font-size:12px; color:#9db2c8; margin-top:6px; }
+
+  #boot-note {
+    position:fixed; left:12px; bottom:12px; z-index:9999;
+    font-size:12px; color:#7f93a8; background:rgba(0,0,0,.5);
+    padding:6px 10px; border-radius:6px; pointer-events:none;
+  }
+
+  /* ===== 战斗界面 ===== */
+  #battle {
+    position:fixed; inset:0; z-index:9998; display:none;
+    flex-direction:column; background:#070a0f;
+  }
+  #battle.show { display:flex; }
+  #hud {
+    display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center;
+    padding:10px 16px; background:rgba(14,18,26,.95);
+    border-bottom:2px solid #2a3648; font-size:15px;
+  }
+  .hud-item b { color:#f5d78e; }
+  #hud .spacer { flex:1; }
+  .hud-btn {
+    cursor:pointer; padding:7px 14px; font-size:14px; color:#fff8e7;
+    background:linear-gradient(180deg,#3a4a60,#22303f);
+    border:1px solid #5a6f88; border-radius:6px;
+  }
+  .hud-btn:hover { filter:brightness(1.25); }
+  .hud-btn.on { background:linear-gradient(180deg,#b3762a,#7a4c12); border-color:#ffd98a; }
+  #main { flex:1; display:flex; min-height:0; }
+  #canvas-wrap { flex:1; position:relative; min-width:0; display:flex;
+                 align-items:center; justify-content:center; padding:8px; }
+  #game { background:#0d1219; border:2px solid #26313f; border-radius:6px;
+          max-width:100%; max-height:100%; touch-action:manipulation; }
+
+  /* 建塔面板 */
+  #shop {
+    width:230px; background:rgba(14,18,26,.97); border-left:2px solid #2a3648;
+    padding:14px 12px; overflow-y:auto;
+  }
+  #shop h3 { color:#f5d78e; font-size:15px; letter-spacing:2px; margin-bottom:10px; }
+  .shop-item {
+    cursor:pointer; padding:10px; margin-bottom:8px; border-radius:8px;
+    background:#141c28; border:2px solid #38465a; transition:.12s;
+  }
+  .shop-item:hover { border-color:#e8b45a; transform:translateX(-3px); }
+  .shop-item.selected { border-color:#ffd98a; background:#2a2010; }
+  .shop-item.disabled { opacity:.45; }
+  .shop-item .row1 { display:flex; justify-content:space-between; align-items:center; }
+  .shop-item .tname { color:#f5d78e; font-size:15px; font-weight:bold; }
+  .shop-item .cost { color:#8fd47a; font-size:13px; }
+  .shop-item .tdesc { color:#9db2c8; font-size:11px; margin-top:4px; line-height:1.5; }
+
+  #sel-panel { margin-top:14px; padding:10px; background:#141c28;
+               border:2px solid #38465a; border-radius:8px; display:none; }
+  #sel-panel.show { display:block; }
+  #sel-panel h4 { color:#f5d78e; font-size:14px; margin-bottom:8px; }
+  #sel-panel .stat { font-size:12px; color:#9db2c8; line-height:1.7; }
+  #sel-panel .acts { display:flex; gap:8px; margin-top:8px; }
+  #sel-panel .acts .hud-btn { flex:1; text-align:center; padding:8px 4px; }
+
+  #tip {
+    position:absolute; left:50%; bottom:16px; transform:translateX(-50%);
+    background:rgba(0,0,0,.78); color:#ffd98a; font-size:13px;
+    padding:7px 16px; border-radius:20px; pointer-events:none;
+    border:1px solid #5a4a2a; opacity:0; transition:opacity .2s; white-space:nowrap;
+  }
+  #tip.show { opacity:1; }
+
+  /* 结算 */
+  #result {
+    position:fixed; inset:0; z-index:10000; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(5,8,12,.88);
+  }
+  #result.show { display:flex; }
+  .result-box {
+    background:#101722; border:3px solid #e8b45a; border-radius:14px;
+    padding:38px 54px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.8);
+  }
+  .result-box h1 { font-size:44px; letter-spacing:8px; margin-bottom:12px; }
+  .result-box h1.win { color:#8fd47a; text-shadow:0 0 22px rgba(143,212,122,.6); }
+  .result-box h1.lose { color:#ff7a6b; text-shadow:0 0 22px rgba(255,122,107,.6); }
+  .result-box p { color:#9db2c8; font-size:15px; margin-bottom:22px; line-height:1.8; }
+  .result-box .btns { display:flex; gap:12px; justify-content:center; }
+
+  @media (max-width:760px) {
+    #main { flex-direction:column; }
+    #shop { width:100%; border-left:none; border-top:2px solid #2a3648;
+            max-height:34vh; }
+    #hud { font-size:13px; gap:6px 10px; padding:8px 10px; }
+    .hud-btn { padding:6px 10px; font-size:13px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="bg-layer"><canvas id="bg-canvas"></canvas></div>
+
+<!-- ================= 菜单层 ================= -->
+<div id="ui-layer">
+  <div id="screen-home" class="screen" style="display:flex;flex-direction:column;align-items:center;gap:18px;">
+    <h1 class="title">战火塔防</h1>
+    <div class="subtitle">WAR3-STYLE TOWER DEFENSE · 完整可玩版</div>
+    <button id="btn-start" class="btn primary" style="display:none;">▶ 开始游戏</button>
+    <div id="start-fallback-note" style="display:none;color:#ff9c6b;font-size:13px;">
+      （资源加载异常，已使用兜底按钮）
+    </div>
+  </div>
+
+  <div id="screen-race" class="screen" style="display:none;flex-direction:column;align-items:center;gap:18px;">
+    <h1 class="title" style="font-size:clamp(22px,4vw,36px);">选择你的种族</h1>
+    <div class="race-grid">
+      <div class="card" data-race="human"><span class="icon">🛡️</span><span class="name">人族</span><div class="desc">箭塔·火炮 稳健推进</div></div>
+      <div class="card" data-race="night"><span class="icon">🌙</span><span class="name">暗夜</span><div class="desc">古树·缠绕 控场减速</div></div>
+      <div class="card" data-race="orc"><span class="icon">🪓</span><span class="name">兽族</span><div class="desc">图腾·战鼓 爆发输出</div></div>
+      <div class="card" data-race="undead"><span class="icon">💀</span><span class="name">亡灵</span><div class="desc">瘟疫·亡语 持续消耗</div></div>
+    </div>
+    <button class="btn small" data-back="home">← 返回</button>
+  </div>
+
+  <div id="screen-map" class="screen" style="display:none;flex-direction:column;align-items:center;gap:18px;">
+    <h1 class="title" style="font-size:clamp(22px,4vw,36px);">选择地图 <span id="chosen-race" style="font-size:16px;color:#9db2c8;"></span></h1>
+    <div class="map-grid">
+      <div class="card" data-map="forests"><span class="icon">🌲</span><span class="name">翡翠森林</span><div class="desc">★☆☆ · 10 波</div></div>
+      <div class="card" data-map="desert"><span class="icon">🏜️</span><span class="name">灼热荒漠</span><div class="desc">★★☆ · 12 波</div></div>
+      <div class="card" data-map="frost"><span class="icon">❄️</span><span class="name">冰封要塞</span><div class="desc">★★★ · 15 波</div></div>
+    </div>
+    <div style="display:flex;gap:12px;">
+      <button class="btn small" data-back="race">← 重选种族</button>
+      <button class="btn primary" id="btn-enter-game" style="min-width:200px;font-size:20px;">进入游戏 ⚔</button>
+    </div>
+  </div>
+</div>
+
+<div id="boot-note">boot: initializing…</div>
+
+<!-- ================= 战斗层 ================= -->
+<div id="battle">
+  <div id="hud">
+    <span class="hud-item">💰 金币 <b id="h-gold">0</b></span>
+    <span class="hud-item">❤️ 基地 <b id="h-hp">0</b></span>
+    <span class="hud-item">🌊 波次 <b id="h-wave">0/10</b></span>
+    <span class="hud-item">👹 场上 <b id="h-enemies">0</b></span>
+    <span class="spacer"></span>
+    <button class="hud-btn" id="btn-next-wave">▶ 提前开波</button>
+    <button class="hud-btn" id="btn-speed">⏩ 1x</button>
+    <button class="hud-btn" id="btn-mute">🔊 音效开</button>
+    <button class="hud-btn" id="btn-quit">🏠 退出</button>
+  </div>
+  <div id="main">
+    <div id="canvas-wrap">
+      <canvas id="game" width="960" height="600"></canvas>
+      <div id="tip"></div>
+    </div>
+    <div id="shop">
+      <h3 id="shop-title">建造 · 选择防御塔</h3>
+      <div id="shop-list"></div>
+      <div id="sel-panel">
+        <h4 id="sel-title">防御塔</h4>
+        <div class="stat" id="sel-stat"></div>
+        <div class="acts">
+          <button class="hud-btn" id="btn-upgrade">⬆ 升级</button>
+          <button class="hud-btn" id="btn-sell">💰 出售</button>
+        </div>
+      </div>
+      <div style="margin-top:14px;font-size:11px;color:#7f93a8;line-height:1.7;">
+        提示：点商店选塔 → 点绿色空地放置；点已建的塔可升级/出售；ESC 取消。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 结算 ================= -->
+<div id="result">
+  <div class="result-box">
+    <h1 id="result-title" class="win">胜 利</h1>
+    <p id="result-info"></p>
+    <div class="btns">
+      <button class="btn primary" id="btn-retry" style="min-width:160px;font-size:20px;">再来一局</button>
+      <button class="btn small" id="btn-to-menu">回首页</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================
+   战火塔防 · 完整游戏
+   修复三原则：交互置顶 / 异步兜底 / 极简切屏
+   ===================================================== */
+
+/* ---------- 背景装饰（pointer-events:none，不拦截点击） ---------- */
+(function bgAnimation(){
+  const c = document.getElementById('bg-canvas'), ctx = c.getContext('2d');
+  let W,H,ps=[];
+  function resize(){ W=c.width=innerWidth; H=c.height=innerHeight; }
+  addEventListener('resize',resize); resize();
+  for(let i=0;i<70;i++) ps.push({x:Math.random()*W,y:Math.random()*H,
+    vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,r:Math.random()*2.2+.5});
+  (function loop(){
+    ctx.clearRect(0,0,W,H);
+    const g=ctx.createRadialGradient(W*.5,H*.4,0,W*.5,H*.4,Math.max(W,H)*.8);
+    g.addColorStop(0,'#16202e'); g.addColorStop(1,'#070a0f');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    for(const p of ps){ p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0)p.x=W; if(p.x>W)p.x=0; if(p.y<0)p.y=H; if(p.y>H)p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7);
+      ctx.fillStyle='rgba(245,170,80,.55)'; ctx.fill(); }
+    requestAnimationFrame(loop);
+  })();
+})();
+
+/* ---------- 异步加载容错：失败/超时也强制渲染开始按钮 ---------- */
+const bootNote=document.getElementById('boot-note');
+function fakeLoad(ms,fail){ return new Promise((res,rej)=>
+  setTimeout(()=>fail?rej(new Error('load fail')):res('ok'),ms)); }
+async function boot(){
+  const btn=document.getElementById('btn-start'),
+        note=document.getElementById('start-fallback-note');
+  try{
+    bootNote.textContent='boot: loading data + audio…';
+    await Promise.race([
+      Promise.all([fakeLoad(500,false),fakeLoad(800,false)]),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),3000))
+    ]);
+    bootNote.textContent='boot: ready ✓';
+  }catch(e){
+    bootNote.textContent='boot: 资源异常('+e.message+')，已启用兜底 UI ✓';
+    note.style.display='block';
+  }finally{
+    btn.style.display='inline-block';   // 兜底：一定显示
+  }
+}
+boot();
+
+/* ---------- 极简切屏 ---------- */
+const screens=['screen-home','screen-race','screen-map'];
+function show(id){
+  screens.forEach(s=>document.getElementById(s).style.display=(s===id)?'flex':'none');
+  document.getElementById('ui-layer').classList.remove('hidden');
+  document.getElementById('battle').classList.remove('show');
+}
+document.getElementById('btn-start').onclick=()=>show('screen-race');
+document.querySelectorAll('[data-back]').forEach(el=>
+  el.onclick=()=>show('screen-'+el.dataset.back));
+
+let chosenRace=null, chosenMap=null;
+const raceNames={human:'人族',night:'暗夜',orc:'兽族',undead:'亡灵'};
+const mapNames={forests:'翡翠森林',desert:'灼热荒漠',frost:'冰封要塞'};
+document.querySelectorAll('[data-race]').forEach(el=>el.onclick=()=>{
+  chosenRace=el.dataset.race;
+  document.querySelectorAll('[data-race]').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('chosen-race').textContent='（当前：'+raceNames[chosenRace]+'）';
+});
+document.querySelectorAll('[data-map]').forEach(el=>el.onclick=()=>{
+  chosenMap=el.dataset.map;
+  document.querySelectorAll('[data-map]').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+});
+document.getElementById('btn-enter-game').onclick=()=>{
+  if(!chosenRace){ tipMenu('请先选择种族'); return; }
+  if(!chosenMap){ tipMenu('请先选择地图'); return; }
+  startGame();
+};
+function tipMenu(msg){
+  const n=document.getElementById('boot-note');
+  n.textContent='⚠ '+msg; n.style.color='#ff9c6b';
+  setTimeout(()=>{n.textContent='boot: ready ✓';n.style.color='#7f93a8';},2200);
+}
+
+/* =====================================================
+   游戏核心
+   ===================================================== */
+const TILE=48, COLS=20, ROWS=12;   // 960x600
+
+// 三张地图路径（格子坐标序列）
+const MAPS={
+  forests:{ path:[[0,2],[6,2],[6,6],[13,6],[13,3],[19,3]], waves:10,
+    bg:'#12211a', pathColor:'#3a3020', hp:20, gold:220 },
+  desert:{ path:[[0,9],[4,9],[4,2],[10,2],[10,9],[15,9],[15,5],[19,5]], waves:12,
+    bg:'#241a10', pathColor:'#4a3820', hp:18, gold:240 },
+  frost:{ path:[[0,5],[3,5],[3,1],[8,1],[8,10],[13,10],[13,4],[16,4],[16,8],[19,8]], waves:15,
+    bg:'#131c26', pathColor:'#2c3a4a', hp:15, gold:260 },
+};
+
+// 种族塔配置：每族 4 塔
+const TOWERS={
+  human:[
+    {id:'arrow',name:'箭塔',icon:'🏹',cost:80, dmg:14, range:120, rate:.55, type:'phys', desc:'射速快 物理单体'},
+    {id:'cannon',name:'火炮',icon:'💥',cost:140, dmg:30, range:135, rate:1.3, type:'phys', splash:55, desc:'范围溅射伤害'},
+    {id:'mage',name:'法师塔',icon:'🔮',cost:170, dmg:44, range:150, rate:1.1, type:'magic', desc:'魔法伤害 克重甲'},
+    {id:'guard',name:'防御塔',icon:'🏰',cost:120, dmg:9, range:105, rate:.4, type:'phys', desc:'低成本高频输出'},
+  ],
+  night:[
+    {id:'archer',name:'射手塔',icon:'🏹',cost:75, dmg:12, range:130, rate:.5, type:'phys', desc:'超远射程'},
+    {id:'root',name:'缠绕古树',icon:'🌿',cost:130, dmg:8, range:110, rate:1.0, type:'magic', slow:.5, slowDur:1.6, desc:'减速敌人 50%'},
+    {id:'moon',name:'月井塔',icon:'🌙',cost:160, dmg:38, range:145, rate:1.2, type:'true', desc:'真实伤害'},
+    {id:'wisp',name:'小精灵',icon:'✨',cost:110, dmg:6, range:100, rate:.3, type:'magic', desc:'极速连击'},
+  ],
+  orc:[
+    {id:'burrow',name:'瞭望塔',icon:'🗼',cost:90, dmg:20, range:115, rate:.8, type:'phys', desc:'均衡输出'},
+    {id:'spirit',name:'灵魂行者',icon:'👻',cost:150, dmg:50, range:140, rate:1.5, type:'magic', desc:'高伤慢速'},
+    {id:'batriders',name:'蝙蝠骑手',icon:'🦇',cost:180, dmg:36, range:125, rate:.9, type:'phys', splash:50, desc:'火焰范围伤害'},
+    {id:'demolish',name:'投石车',icon:'🪨',cost:200, dmg:70, range:160, rate:2.0, type:'phys', splash:65, desc:'超远程重炮'},
+  ],
+  undead:[
+    {id:'nerub',name:'蛛网塔',icon:'🕷️',cost:85, dmg:13, range:120, rate:.6, type:'phys', slow:.7, slowDur:1.2, desc:'附带减速'},
+    {id:'spiritT',name:'幽魂之塔',icon:'☠️',cost:140, dmg:34, range:135, rate:1.0, type:'magic', desc:'魔法穿透'},
+    {id:'plague',name:'瘟疫塔',icon:'🧪',cost:175, dmg:16, range:150, rate:.7, type:'true', poison:8, poisonDur:3, desc:'持续毒伤'},
+    {id:'boneyard',name:'白骨之塔',icon:'🦴',cost:190, dmg:58, range:130, rate:1.4, type:'magic', splash:45, desc:'范围 + 高伤'},
+  ],
+};
+
+// 敌人类型
+const ENEMY_TYPES={
+  footman:{ name:'步兵', hp:60, spd:55, gold:8, r:11, color:'#c8b48a', armor:'light' },
+  grunt:{ name:'兽人', hp:140, spd:48, gold:12, r:13, color:'#7fae5a', armor:'heavy' },
+  knight:{ name:'骑士', hp:320, spd:62, gold:20, r:15, color:'#d8c060', armor:'heavy' },
+  ghoul:{ name:'食尸鬼', hp:80, spd:72, gold:9, r:11, color:'#9a8ab8', armor:'light' },
+  abom:{ name:'憎恶', hp:500, spd:36, gold:35, r:18, color:'#88995a', armor:'fort' },
+  drake:{ name:'巨龙', hp:900, spd:45, gold:80, r:22, color:'#d85a4a', armor:'fort', boss:true },
+};
+
+let G=null;  // 全局游戏状态
+
+function newGame(){
+  const m=MAPS[chosenMap];
+  return {
+    map:chosenMap, pathCells:m.path, waves:m.waves,
+    hp:m.hp, gold:m.gold, wave:0, maxWave:m.waves,
+    towers:[], enemies:[], bullets:[], effects:[],
+    pathPts: buildPath(m.path),
+    waveActive:false, spawnQueue:[], spawnTimer:0,
+    selectedTile:-1, buildType:null, selectedTower:null,
+    speed:1, muted:false, over:false,
+    countdown:5, // 开局准备倒计时（秒）
+    grid: buildGrid(m.path),
+    kills:0, leaked:0,
+  };
+}
+function buildPath(cells){
+  const pts=[];
+  for(let i=0;i<cells.length-1;i++){
+    const [x1,y1]=cells[i],[x2,y2]=cells[i+1];
+    const dx=Math.sign(x2-x1), dy=Math.sign(y2-y1);
+    let x=x1,y=y1;
+    while(x!==x2||y!==y2){ pts.push([x,y]); x+=dx; y+=dy; }
+  }
+  const last=cells[cells.length-1]; pts.push([last[0],last[1]]);
+  return pts.map(([cx,cy])=>[cx*TILE+TILE/2, cy*TILE+TILE/2]);
+}
+function buildGrid(cells){
+  const g=Array.from({length:COLS},()=>Array(ROWS).fill(0));
+  for(const [x,y] of cells) if(x<COLS&&y<ROWS) g[x][y]=1;
+  return g;
+}
+
+/* ---------- 音效（WebAudio 简单合成，可静音） ---------- */
+let AC=null;
+function beep(freq,dur,type,vol){
+  if(G&&G.muted) return;
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(), gn=AC.createGain();
+    o.type=type||'square'; o.frequency.value=freq;
+    gn.gain.value=(vol||.06);
+    gn.gain.exponentialRampToValueAtTime(.001,AC.currentTime+dur);
+    o.connect(gn); gn.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime+dur);
+  }catch(e){}
+}
+
+/* ---------- 开始游戏 ---------- */
+function startGame(){
+  G=newGame();
+  document.getElementById('ui-layer').classList.add('hidden');
+  document.getElementById('battle').classList.add('show');
+  document.getElementById('result').classList.remove('show');
+  document.getElementById('shop-title').textContent='建造 · '+raceNames[chosenRace];
+  renderShop();
+  hideSel();
+  updateHud();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- 商店 ---------- */
+function renderShop(){
+  const list=document.getElementById('shop-list');
+  list.innerHTML='';
+  TOWERS[chosenRace].forEach((t,i)=>{
+    const d=document.createElement('div');
+    d.className='shop-item'; d.dataset.idx=i;
+    d.innerHTML='<div class="row1"><span class="tname">'+t.icon+' '+t.name+
+      '</span><span class="cost">💰'+t.cost+'</span></div>'+
+      '<div class="tdesc">'+t.desc+'<br>伤害'+t.dmg+' · 射程'+t.range+' · 间隔'+t.rate+'s</div>';
+    d.onclick=()=>{
+      if(G.gold<t.cost){ showTip('金币不足，需要 '+t.cost); beep(180,.15,'sawtooth'); return; }
+      G.buildType=(G.buildType===i)?null:i;
+      G.selectedTower=null; hideSel();
+      document.querySelectorAll('.shop-item').forEach((x,j)=>x.classList.toggle('selected',j===G.buildType));
+      showTip(G.buildType===null?'已取消建造':'选中 '+t.name+' → 点击绿色空地放置');
+    };
+    list.appendChild(d);
+  });
+}
+function refreshShopState(){
+  document.querySelectorAll('.shop-item').forEach((el,i)=>{
+    const t=TOWERS[chosenRace][i];
+    el.classList.toggle('disabled',G.gold<t.cost);
+    el.classList.toggle('selected',G.buildType===i);
+  });
+}
+
+/* ---------- 选中塔面板 ---------- */
+function showSel(tw){
+  G.selectedTower=tw; G.buildType=null;
+  refreshShopState();
+  const base=tw.def;
+  document.getElementById('sel-panel').classList.add('show');
+  document.getElementById('sel-title').textContent=base.icon+' '+base.name+' Lv.'+tw.level;
+  document.getElementById('sel-stat').innerHTML=
+    '伤害：'+Math.round(tw.dmg)+'<br>射程：'+Math.round(tw.range)+
+    '<br>攻速：'+tw.rate.toFixed(2)+'s/发<br>击杀：'+tw.kills;
+  const upCost=upgradeCost(tw);
+  const upBtn=document.getElementById('btn-upgrade');
+  upBtn.textContent= tw.level>=3?'已满级':('⬆ 升级 💰'+upCost);
+  upBtn.disabled= tw.level>=3 || G.gold<upCost;
+  document.getElementById('btn-sell').textContent='💰 出售 +'+sellValue(tw);
+}
+function hideSel(){
+  G&&(G.selectedTower=null);
+  document.getElementById('sel-panel').classList.remove('show');
+}
+function upgradeCost(tw){ return Math.round(tw.def.cost*(0.8+0.5*tw.level)); }
+function sellValue(tw){ return Math.round(tw.invested*0.7); }
+document.getElementById('btn-upgrade').onclick=()=>{
+  const tw=G&&G.selectedTower; if(!tw||tw.level>=3) return;
+  const c=upgradeCost(tw);
+  if(G.gold<c){ showTip('金币不足'); beep(180,.15,'sawtooth'); return; }
+  G.gold-=c; tw.invested+=c; tw.level++;
+  tw.dmg*=1.55; tw.range+=12; tw.rate*=0.9;
+  beep(660,.12,'triangle'); showTip(tw.def.name+' 升至 Lv.'+tw.level);
+  updateHud(); showSel(tw);
+};
+document.getElementById('btn-sell').onclick=()=>{
+  const tw=G&&G.selectedTower; if(!tw) return;
+  G.gold+=sellValue(tw);
+  G.towers=G.towers.filter(t=>t!==tw);
+  beep(420,.12,'sine'); showTip('已出售，返还 '+sellValue(tw)+' 金币');
+  hideSel(); updateHud();
+};
+
+/* ---------- 提示 ---------- */
+let tipTimer=null;
+function showTip(msg){
+  const t=document.getElementById('tip');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(tipTimer);
+  tipTimer=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+/* ---------- HUD ---------- */
+function updateHud(){
+  document.getElementById('h-gold').textContent=Math.floor(G.gold);
+  document.getElementById('h-hp').textContent=Math.max(0,G.hp);
+  document.getElementById('h-wave').textContent=G.wave+'/'+G.maxWave;
+  document.getElementById('h-enemies').textContent=G.enemies.length+G.spawnQueue.length;
+  refreshShopState();
+}
+document.getElementById('btn-next-wave').onclick=()=>{
+  if(G.over) return;
+  if(G.waveActive){ showTip('本波进行中'); return; }
+  G.countdown=0;
+};
+document.getElementById('btn-speed').onclick=e=>{
+  G.speed=G.speed===1?2:G.speed===2?3:1;
+  e.target.textContent='⏩ '+G.speed+'x';
+  e.target.classList.toggle('on',G.speed>1);
+};
+document.getElementById('btn-mute').onclick=e=>{
+  G.muted=!G.muted;
+  e.target.textContent=G.muted?'🔇 音效关':'🔊 音效开';
+};
+document.getElementById('btn-quit').onclick=()=>{
+  if(confirm('退出当前对局回首页？')){ G=null; show('screen-home'); }
+};
+document.getElementById('btn-retry').onclick=()=>startGame();
+document.getElementById('btn-to-menu').onclick=()=>{ G=null; show('screen-home'); };
+
+/* ---------- 画布点击 ---------- */
+const cv=document.getElementById('game'), ctx=cv.getContext('2d');
+cv.addEventListener('click',e=>{
+  if(!G||G.over) return;
+  const rect=cv.getBoundingClientRect();
+  const x=(e.clientX-rect.left)*(cv.width/rect.width);
+  const y=(e.clientY-rect.top)*(cv.height/rect.height);
+  const cx=Math.floor(x/TILE), cy=Math.floor(y/TILE);
+  if(cx<0||cy<0||cx>=COLS||cy>=ROWS) return;
+
+  // 已有塔 → 选中
+  const exist=G.towers.find(t=>t.cx===cx&&t.cy===cy);
+  if(exist){ showSel(exist); beep(520,.06,'sine'); return; }
+
+  // 建造模式
+  if(G.buildType!==null){
+    if(G.grid[cx][cy]!==0){ showTip('这里是路径，无法建造'); beep(180,.12,'sawtooth'); return; }
+    const def=TOWERS[chosenRace][G.buildType];
+    if(G.gold<def.cost){ showTip('金币不足'); beep(180,.15,'sawtooth'); return; }
+    G.gold-=def.cost;
+    G.towers.push({cx,cy,def,level:1,dmg:def.dmg,range:def.range,
+      rate:def.rate,cool:0,invested:def.cost,kills:0,cdAnim:0});
+    beep(700,.1,'triangle'); showTip('已建造 '+def.name);
+    // 连续建造：若金币不够则取消
+    if(G.gold<def.cost){ G.buildType=null; }
+    updateHud(); hideSel(); refreshShopState();
+    return;
+  }
+  hideSel();
+});
+addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&G){ G.buildType=null; hideSel(); refreshShopState(); showTip('已取消'); }
+});
+
+/* ---------- 波次生成 ---------- */
+function genWave(wave,total){
+  const q=[];
+  const n=5+wave*2;
+  for(let i=0;i<n;i++){
+    let type='footman';
+    const r=Math.random();
+    if(wave>=3&&r<.35) type='grunt';
+    if(wave>=5&&r<.2) type='ghoul';
+    if(wave>=6&&r<.12) type='knight';
+    if(wave>=8&&r<.08) type='abom';
+    // 最后一波出 boss
+    if(wave===total&&i===n-1) type='drake';
+    q.push(type);
+  }
+  return q;
+}
+function startWave(){
+  if(G.wave>=G.maxWave||G.waveActive) return;
+  G.wave++;
+  G.waveActive=true;
+  G.spawnQueue=genWave(G.wave,G.maxWave);
+  G.spawnTimer=0;
+  beep(340,.2,'sawtooth',.08);
+  showTip('第 '+G.wave+' 波来袭！');
+  updateHud();
+}
+function spawnEnemy(type){
+  const d=ENEMY_TYPES[type];
+  const scale=1+ (G.wave-1)*0.14;   // 随波次成长
+  G.enemies.push({
+    type, def:d,
+    hp:d.hp*scale, maxHp:d.hp*scale,
+    spd:d.spd, seg:0, t:0, x:G.pathPts[0][0], y:G.pathPts[0][1],
+    slowT:0, slowF:1, poisonT:0, poisonDps:0,
+    gold:Math.round(d.gold*(1+(G.wave-1)*0.06)),
+  });
+}
+
+/* ---------- 主循环 ---------- */
+let lastT=performance.now();
+function loop(now){
+  if(!G||G.over&&G.enemies.length===0&&document.getElementById('result').classList.contains('show')) return;
+  if(!G){ return; }
+  let dt=Math.min((now-lastT)/1000,.05)*G.speed;
+  lastT=now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function update(dt){
+  if(G.over) return;
+
+  // 准备倒计时 → 自动开波
+  if(!G.waveActive){
+    if(G.wave<G.maxWave){
+      G.countdown-=dt;
+      if(G.countdown<=0) startWave();
+    }
+  } else {
+    // 出怪
+    if(G.spawnQueue.length){
+      G.spawnTimer-=dt;
+      if(G.spawnTimer<=0){
+        spawnEnemy(G.spawnQueue.shift());
+        G.spawnTimer=0.75;
+      }
+    }
+    // 波次清空
+    if(G.spawnQueue.length===0&&G.enemies.length===0){
+      G.waveActive=false;
+      G.countdown=6;
+      const bonus=40+G.wave*12;
+      G.gold+=bonus;
+      showTip('第 '+G.wave+' 波守住了！奖励 +'+bonus);
+      beep(780,.15,'triangle');
+      if(G.wave>=G.maxWave){ win(); return; }
+      updateHud();
+    }
+  }
+
+  // 敌人移动
+  for(let i=G.enemies.length-1;i>=0;i--){
+    const e=G.enemies[i];
+    // 减速恢复
+    if(e.slowT>0){ e.slowT-=dt; } else e.slowF=1;
+    // 中毒
+    if(e.poisonT>0){
+      e.poisonT-=dt; e.hp-=e.poisonDps*dt;
+      if(e.hp<=0){ killEnemy(e,i); continue; }
+    }
+    let move=e.spd*e.slowF*dt;
+    while(move>0&&e.seg<G.pathPts.length-1){
+      const p1=G.pathPts[e.seg], p2=G.pathPts[e.seg+1];
+      const dx=p2[0]-e.x, dy=p2[1]-e.y, dist=Math.hypot(dx,dy);
+      if(dist<=move){ e.x=p2[0]; e.y=p2[1]; e.seg++; move-=dist; }
+      else { e.x+=dx/dist*move; e.y+=dy/dist*move; move=0; }
+    }
+    if(e.seg>=G.pathPts.length-1){
+      // 漏怪
+      G.hp-=e.def.boss?5:1;
+      G.leaked++;
+      G.enemies.splice(i,1);
+      beep(140,.3,'sawtooth',.1);
+      updateHud();
+      if(G.hp<=0){ lose(); return; }
+    }
+  }
+
+  // 塔攻击
+  for(const t of G.towers){
+    t.cool-=dt;
+    if(t.cool>0) continue;
+    // 找射程内最靠前的敌人
+    const tx=t.cx*TILE+TILE/2, ty=t.cy*TILE+TILE/2;
+    let target=null, bestSeg=-1;
+    for(const e of G.enemies){
+      const d=Math.hypot(e.x-tx,e.y-ty);
+      if(d<=t.range&&e.seg>bestSeg){ bestSeg=e.seg; target=e; }
+    }
+    if(!target) continue;
+    t.cool=t.rate; t.cdAnim=.15;
+    G.bullets.push({x:tx,y:ty,target,dmg:t.dmg,def:t.def,tower:t,spd:420});
+    beep(880,.04,'square',.03);
+  }
+  for(const t of G.towers) if(t.cdAnim>0) t.cdAnim-=dt;
+
+  // 子弹
+  for(let i=G.bullets.length-1;i>=0;i--){
+    const b=G.bullets[i];
+    if(!G.enemies.includes(b.target)){ G.bullets.splice(i,1); continue; }
+    const dx=b.target.x-b.x, dy=b.target.y-b.y, dist=Math.hypot(dx,dy);
+    const step=b.spd*dt;
+    if(dist<=step+8){ hitEnemy(b); G.bullets.splice(i,1); }
+    else { b.x+=dx/dist*step; b.y+=dy/dist*step; }
+  }
+
+  // 特效衰减
+  for(let i=G.effects.length-1;i>=0;i--){
+    const f=G.effects[i]; f.t-=dt;
+    if(f.t<=0) G.effects.splice(i,1);
+  }
+
+  updateHud();
+}
+
+function applyDamage(e, dmg, def, tower){
+  let d=dmg;
+  if(def.type==='phys'){
+    if(e.def.armor==='heavy') d*=0.75;
+    if(e.def.armor==='fort') d*=0.55;
+  } else if(def.type==='magic'){
+    if(e.def.armor==='heavy') d*=1.3;
+    if(e.def.armor==='light') d*=0.9;
+  } // true: 无视
+  e.hp-=d;
+  // 附加效果
+  if(def.slow){ e.slowF=Math.min(e.slowF,def.slow); e.slowT=Math.max(e.slowT,def.slowDur||1.5); }
+  if(def.poison){ e.poisonDps=def.poison; e.poisonT=def.poisonDur||3; }
+  return d;
+}
+
+function hitEnemy(b){
+  const e=b.target;
+  if(!G.enemies.includes(e)) return;
+  const idx=G.enemies.indexOf(e);
+  const def=b.def;
+  applyDamage(e,b.dmg,def,b.tower);
+  // 溅射
+  if(def.splash){
+    for(const o of G.enemies){
+      if(o===e) continue;
+      if(Math.hypot(o.x-e.x,o.y-e.y)<=def.splash) applyDamage(o,b.dmg*.55,def,b.tower);
+    }
+    G.effects.push({x:e.x,y:e.y,r:def.splash,t:.18,max:.18,color:'rgba(255,160,60,'});
+  } else {
+    G.effects.push({x:e.x,y:e.y,r:14,t:.14,max:.14,color:'rgba(255,240,160,'});
+  }
+  if(e.hp<=0) killEnemy(e, idx);
+}
+
+function killEnemy(e, idx){
+  const i=G.enemies.indexOf(e);
+  if(i<0) return;
+  G.enemies.splice(i,1);
+  G.gold+=e.def.gold;
+  G.kills++;
+  if(G.selectedTower) G.selectedTower.kills++;
+  G.effects.push({x:e.x,y:e.y,r:26,t:.3,max:.3,color:'rgba(255,90,60,'});
+  beep(220,.06,'triangle',.04);
+}
+
+function win(){ endGame(true); }
+function lose(){ endGame(false); }
+function endGame(winFlag){
+  if(G.over) return;
+  G.over=true;
+  const t=document.getElementById('result-title');
+  t.textContent=winFlag?'胜 利':'败 北';
+  t.className=winFlag?'win':'lose';
+  document.getElementById('result-info').innerHTML=
+    '种族：'+raceNames[chosenRace]+' ｜ 地图：'+mapNames[chosenMap]+'<br>'+
+    '到达波次：'+G.wave+'/'+G.maxWave+' ｜ 击杀：'+G.kills+' ｜ 漏怪：'+G.leaked;
+  document.getElementById('result').classList.add('show');
+  beep(winFlag?880:160,.5,winFlag?'triangle':'sawtooth',.12);
+}
+
+/* ---------- 绘制 ---------- */
+function draw(){
+  const m=MAPS[G.map];
+  ctx.fillStyle=m.bg; ctx.fillRect(0,0,cv.width,cv.height);
+
+  // 网格 + 空地
+  for(let x=0;x<COLS;x++)for(let y=0;y<ROWS;y++){
+    if(G.grid[x][y]===0){
+      ctx.fillStyle=((x+y)%2===0)?'rgba(60,110,70,.28)':'rgba(60,110,70,.18)';
+      ctx.fillRect(x*TILE+1,y*TILE+1,TILE-2,TILE-2);
+    }
+  }
+  // 路径
+  ctx.fillStyle=m.pathColor;
+  for(const [cx,cy] of G.pathCells){
+    ctx.fillRect(cx*TILE,cy*TILE,TILE,TILE);
+  }
+  // 路径边缘线
+  ctx.strokeStyle='rgba(255,255,255,.07)'; ctx.lineWidth=1;
+  for(let x=0;x<=COLS;x++){ ctx.beginPath();ctx.moveTo(x*TILE,0);ctx.lineTo(x*TILE,cv.height);ctx.stroke(); }
+  for(let y=0;y<=ROWS;y++){ ctx.beginPath();ctx.moveTo(0,y*TILE);ctx.lineTo(cv.width,y*TILE);ctx.stroke(); }
+
+  // 起点/终点
+  const s=G.pathPts[0], en=G.pathPts[G.pathPts.length-1];
+  ctx.font='20px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('🚪',s[0],s[1]); ctx.fillText('🏰',en[0],en[1]);
+
+  // 建造预览
+  if(G.buildType!==null){
+    const def=TOWERS[chosenRace][G.buildType];
+    cv.style.cursor='crosshair';
+  } else cv.style.cursor='default';
+
+  // 塔
+  for(const t of G.towers){
+    const x=t.cx*TILE+TILE/2, y=t.cy*TILE+TILE/2;
+    // 射程圈（选中时）
+    if(G.selectedTower===t){
+      ctx.beginPath(); ctx.arc(x,y,t.range,0,7);
+      ctx.fillStyle='rgba(255,220,120,.10)'; ctx.fill();
+      ctx.strokeStyle='rgba(255,220,120,.5)'; ctx.setLineDash([6,4]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.fillStyle='#1b2534';
+    ctx.fillRect(t.cx*TILE+4,t.cy*TILE+4,TILE-8,TILE-8);
+    ctx.strokeStyle=t.cdAnim>0?'#ffd98a':'#5a6f88';
+    ctx.lineWidth=t.cdAnim>0?2.5:1.5;
+    ctx.strokeRect(t.cx*TILE+4,t.cy*TILE+4,TILE-8,TILE-8);
+    ctx.font='22px serif';
+    ctx.fillText(t.def.icon,x,y+1);
+    // 等级星
+    ctx.font='9px sans-serif'; ctx.fillStyle='#ffd98a';
+    ctx.fillText('★'.repeat(t.level),x,y+17);
+  }
+
+  // 敌人
+  for(const e of G.enemies){
+    ctx.beginPath(); ctx.arc(e.x,e.y,e.def.r,0,7);
+    ctx.fillStyle=e.def.color; ctx.fill();
+    if(e.def.boss){ ctx.lineWidth=3; ctx.strokeStyle='#ffd98a'; ctx.stroke(); }
+    if(e.slowT>0){ ctx.lineWidth=2; ctx.strokeStyle='rgba(120,220,255,.8)'; ctx.stroke(); }
+    if(e.poisonT>0){ ctx.lineWidth=2; ctx.strokeStyle='rgba(140,255,120,.8)'; ctx.stroke(); }
+    // 血条
+    const w=e.def.r*2, hp=Math.max(0,e.hp/e.maxHp);
+    ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(e.x-w/2,e.y-e.def.r-8,w,4);
+    ctx.fillStyle=hp>.5?'#8fd47a':hp>.25?'#f5d78e':'#ff7a6b';
+    ctx.fillRect(e.x-w/2,e.y-e.def.r-8,w*hp,4);
+  }
+
+  // 子弹
+  for(const b of G.bullets){
+    ctx.beginPath(); ctx.arc(b.x,b.y,4,0,7);
+    ctx.fillStyle=b.def.type==='magic'?'#a78bfa':b.def.type==='true'?'#67e8f9':'#ffd98a';
+    ctx.fill();
+  }
+
+  // 特效
+  for(const f of G.effects){
+    const a=f.t/f.max;
+    ctx.beginPath(); ctx.arc(f.x,f.y,f.r*(1+(1-a)*.6),0,7);
+    ctx.fillStyle=f.color+(a*.6)+')'; ctx.fill();
+  }
+
+  // 准备倒计时横幅
+  if(!G.waveActive&&G.wave<G.maxWave&&G.countdown>0&&!G.over){
+    ctx.fillStyle='rgba(0,0,0,.55)';
+    ctx.fillRect(cv.width/2-160,10,320,44);
+    ctx.strokeStyle='#e8b45a'; ctx.strokeRect(cv.width/2-160,10,320,44);
+    ctx.fillStyle='#ffd98a'; ctx.font='bold 18px sans-serif';
+    ctx.fillText('第 '+(G.wave+1)+' 波将在 '+Math.ceil(G.countdown)+'s 后进攻',cv.width/2,33);
+    ctx.font='13px sans-serif'; ctx.fillStyle='#9db2c8';
+    ctx.fillText('抓紧时间建塔！',cv.width/2,52);
+  }
+  if(G.over){
+    ctx.fillStyle='rgba(0,0,0,.4)'; ctx.fillRect(0,0,cv.width,cv.height);
+  }
+}
+
+// 修正主循环退出条件：战斗中持续渲染
+function loopSafe(now){
+  if(!G){ return; }
+  if(G.over && document.getElementById('result').classList.contains('show')){
+    // 结算界面展示时停止
+    return;
+  }
+  loop(now);
+}
+</script>
+<!-- ================= 排查步骤 + Unity/Godot/Canvas 代码 ================= -->
+<div id="docs">
+  <button class="btn small close" id="docs-close">收起 ✕</button>
+  <h2>一、为什么“背景能动，但没有按钮 / 点不动”——排查步骤</h2>
+  <ol>
+    <li><b>看层级</b>：背景动画对象是否盖在 Button 之上？UI 应在最顶层（Canvas Overlay / z-index 最高）。</li>
+    <li><b>看射线拦截</b>：Unity 取消勾选 <code>Raycast Target</code>；Godot <code>mouse_filter = IGNORE</code>；Canvas <code>pointer-events:none</code>。90%“点不动”是这个。</li>
+    <li><b>看有没有渲染</b>：按钮 alpha/scale=0 或被动画停帧？打日志确认 activeInHierarchy / visible。</li>
+    <li><b>看异步流程</b>：加载存档/音效的 await 抛异常 → 后续 ShowMainUI 没执行。用 try/catch/finally 或 Promise.race(timeout) 保证 UI 必渲染。</li>
+    <li><b>看场景切换</b>：onClick 绑了吗？EventSystem / Control 节点存在吗？</li>
+    <li><b>看分辨率适配</b>：按钮被挤出屏？设 Canvas Scaler + 居中锚点。</li>
+    <li><b>最小复现</b>：空场景只放背景+按钮，能点 = 遮挡/时序问题；不能点 = EventSystem 层级问题。</li>
+  </ol>
+
+  <h2>二、通用原则（本页已实现）</h2>
+  <ul>
+    <li>① 交互层 <code>z-index:9999</code> 置顶，背景 <code>pointer-events:none</code>（= RaycastTarget=false）。</li>
+    <li>② 资源加载无论成败，<code>finally</code> 强制渲染“开始游戏”按钮，3 秒超时兜底。</li>
+    <li>③ “开始”同步切屏到种族选择 → 地图选择，无过场动画依赖。</li>
+  </ul>
+
+  <h2>三、Unity C# 修复代码</h2>
+  <pre><span class="tag">HomeUIController.cs</span>
+using System.Collections;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class HomeUIController : MonoBehaviour
+{
+    public Canvas uiCanvas;
+    public Image backgroundAnim;
+    public GameObject racePanel, mapPanel, homePanel;
+
+    IEnumerator Start()
+    {
+        // 关键1：关闭背景射线拦截 + UI 置顶
+        backgroundAnim.raycastTarget = false;
+        uiCanvas.overrideSorting = true;
+        uiCanvas.sortingOrder = 32767;
+
+        // 关键2：兜底渲染主按钮（即使加载失败）
+        var btnStart = homePanel.GetComponentInChildren&lt;Button&gt;(true);
+        btnStart.gameObject.SetActive(false);
+        bool ok = false;
+        yield return StartCoroutine(LoadResWithTimeout(3f, r =&gt; ok = r));
+        btnStart.gameObject.SetActive(true);       // 无论成败都显示
+        if (!ok) Debug.LogWarning("[HomeUI] 资源加载失败/超时，已用兜底 UI");
+
+        btnStart.onClick.RemoveAllListeners();
+        btnStart.onClick.AddListener(EnterRaceSelect);   // 关键3
+    }
+
+    IEnumerator LoadResWithTimeout(float t, System.Action&lt;bool&gt; done)
+    {
+        float timer = 0;
+        var op = AudioBundle.LoadAsync();   // 你的加载
+        while (!op.isDone &amp;&amp; timer &lt; t) { timer += Time.deltaTime; yield return null; }
+        done(op.isDone);
+    }
+
+    public void EnterRaceSelect()
+    {
+        homePanel.SetActive(false);
+        racePanel.SetActive(true);          // 人/夜/兽/鬼
+        mapPanel.SetActive(false);
+    }
+    public void EnterMapSelect(string race) { racePanel.SetActive(false); mapPanel.SetActive(true); }
+}</pre>
+
+  <h2>四、Godot 4 修复代码（GDScript）</h2>
+  <pre><span class="tag">home_ui.gd</span>
+extends Control
+
+@onready var home = %HomePanel
+@onready var race = %RacePanel
+@onready var map  = %MapPanel
+@onready var bg   = $BackgroundAnim
+@onready var btn  = %BtnStart
+
+func _ready() -> void:
+    # 关键1：背景不接收鼠标 + UI 顶层
+    if bg is TextureRect: bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    z_index = 100
+    # 关键2：兜底渲染开始按钮（3 秒超时也不拦 UI）
+    btn.visible = false
+    var ok = await _load_with_timeout(3.0)
+    btn.visible = true              # 无论成败都显示
+    if not ok: push_warning("资源加载失败，使用兜底 UI")
+    btn.pressed.connect(enter_race_select)   # 关键3
+
+func _load_with_timeout(t: float) -> bool:
+    var task = _load_save_async()
+    var timer = 0.0
+    while not task.is_completed() and timer &lt; t:
+        timer += get_process_delta_time()
+        await get_tree().process_frame
+    return task.is_completed()
+
+func enter_race_select() -> void:
+    home.visible = false; race.visible = true
+func enter_map_select() -> void:
+    race.visible = false; map.visible = true</pre>
+
+  <h2>五、HTML5 Canvas / DOM 修复代码（本页实现）</h2>
+  <pre><span class="tag">core.js</span>
+// 关键1：交互层置顶，背景关闭射线拦截
+bgLayer.style.pointerEvents = 'none';   // = raycastTarget=false
+uiLayer.style.zIndex = 9999;
+
+// 关键2：异步容错 —— 超时/失败也强制渲染开始按钮
+async function boot() {
+  const btn = document.getElementById('btn-start');
+  try {
+    await Promise.race([
+      Promise.all([loadData(), loadAudio()]),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000)),
+    ]);
+  } catch (e) {
+    document.getElementById('start-fallback-note').style.display = 'block';
+  } finally {
+    btn.style.display = 'inline-block';   // 兜底：一定显示
+  }
+}
+boot();
+
+// 关键3：开始 → 同步切到种族/地图选择
+btn.onclick = () => show('screen-race');
+document.querySelectorAll('[data-race]').forEach(el =>
+  el.onclick = () => { chosenRace = el.dataset.race; });</pre>
+</div>
+<button id="docs-btn" class="btn small" style="position:fixed;right:14px;bottom:14px;z-index:10001;min-width:0;">📋 排查 &amp; 三端代码</button>
+
+<script>
+const docs=document.getElementById('docs');
+document.getElementById('docs-btn').onclick=()=>docs.classList.add('open');
+document.getElementById('docs-close').onclick=()=>docs.classList.remove('open');
+</script>
+<style>
+  #docs { position:fixed; inset:auto 0 0 0; z-index:10002; max-height:72vh; overflow:auto;
+    background:rgba(8,11,16,.97); border-top:3px solid #e8b45a;
+    padding:22px clamp(16px,4vw,48px) 40px; transform:translateY(101%); transition:transform .25s; }
+  #docs.open { transform:translateY(0); }
+  #docs h2 { color:#f5d78e; font-size:19px; margin:16px 0 10px; letter-spacing:2px; }
+  #docs ol,#docs ul { padding-left:22px; line-height:1.9; font-size:14px; }
+  #docs pre { background:#0d1219; border:1px solid #26313f; border-radius:8px;
+    padding:14px; overflow:auto; font-size:13px; line-height:1.55; color:#b9e07c; margin:8px 0; }
+  #docs .close { position:sticky; top:0; float:right; }
+  #docs .tag { display:inline-block; background:#26313f; color:#9db2c8;
+    font-size:12px; padding:2px 8px; border-radius:4px; }
+</style>
+</body>
+</html>

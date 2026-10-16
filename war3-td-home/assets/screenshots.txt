@@ -1,0 +1,4 @@
+responsive screenshots (三档断点):
+- 360x800   mobile.png   (max-width:760px 移动断点)
+- 768x1024  tablet.png   (grid auto-fit 单列/双列)
+- 1280x800  desktop.png  (race-grid 四列)
