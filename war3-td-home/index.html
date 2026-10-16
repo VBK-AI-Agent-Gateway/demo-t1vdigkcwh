@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>War3 塔防 · 首页 UI 修复演示</title>
+<style>
+  /* ============ 0. 全局：严格分层 ============
+     层级约定（从低到高）：
+       0 背景动画层  10 遮罩  20 遮罩  30 遮罩  40 模态/提示
+     背景层永远 pointer-events:none，交互层永远最高 z-index */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    font-family:"Microsoft YaHei",system-ui,sans-serif;
+    background:#0a0e14; color:#e8dcc0; overflow:hidden;
+  }
+
+  /* ---------- 1. 背景动画层：关闭射线拦截 ---------- */
+  #bg-layer {
+    position:fixed; inset:0; z-index:0;
+    pointer-events:none;      /* ← 关键1：等价 Unity Image.raycastTarget=false */
+    user-select:none;
+  }
+  #bg-canvas { width:100%; height:100%; display:block; }
+
+  /* ---------- 2. 交互层：强制置顶 ---------- */
+  #ui-layer {
+    position:fixed; inset:0; z-index:9999;  /* ← 关键2：永远最高 */
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    pointer-events:auto;
+    gap:18px; padding:24px;
+    background:radial-gradient(ellipse at center, rgba(10,14,20,.25), rgba(10,14,20,.72));
+  }
+  #ui-layer.hidden { display:none; }
+
+  h1.title {
+    font-size:clamp(28px,6vw,56px); letter-spacing:6px;
+    color:#f5d78e; text-shadow:0 0 18px rgba(245,160,60,.55), 0 3px 0 #5a3a12;
+  }
+  .subtitle { color:#9db2c8; font-size:14px; margin-top:-8px; }
+
+  /* 按钮统一：大、亮、可见、可点 */
+  .btn {
+    pointer-events:auto; cursor:pointer; z-index:10000;
+    min-width:260px; padding:16px 34px;
+    font-size:22px; letter-spacing:4px; color:#fff8e7;
+    background:linear-gradient(180deg,#8a5a1e,#5c3a10);
+    border:2px solid #e8b45a; border-radius:8px;
+    box-shadow:0 4px 16px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.25);
+    transition:transform .12s, box-shadow .12s, filter .12s;
+  }
+  .btn:hover  { transform:translateY(-2px); filter:brightness(1.2);
+                box-shadow:0 8px 24px rgba(232,180,90,.45); }
+  .btn:active { transform:translateY(1px); }
+  .btn.primary { background:linear-gradient(180deg,#b3762a,#7a4c12);
+                 border-color:#ffd98a; font-size:26px; }
+  .btn.small  { min-width:0; padding:10px 20px; font-size:15px; letter-spacing:2px; }
+
+  .race-grid, .map-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:14px; width:min(720px,92vw);
+  }
+  .card {
+    pointer-events:auto; cursor:pointer; z-index:10000;
+    padding:20px 12px; text-align:center; border-radius:10px;
+    background:rgba(20,28,40,.85); border:2px solid #4a5b70;
+    transition:.15s;
+  }
+  .card:hover { border-color:#e8b45a; background:rgba(45,34,16,.9);
+                transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,.6); }
+  .card .icon { font-size:40px; display:block; margin-bottom:8px; }
+  .card .name { font-size:20px; color:#f5d78e; letter-spacing:3px; }
+  .card .desc { font-size:12px; color:#9db2c8; margin-top:6px; }
+
+  /* 加载兜底提示条（可选，不阻塞按钮） */
+  #boot-note {
+    position:fixed; left:12px; bottom:12px; z-index:9999;
+    font-size:12px; color:#7f93a8; background:rgba(0,0,0,.5);
+    padding:6px 10px; border-radius:6px; pointer-events:none;
+  }
+
+  /* ============ 排查步骤 / 代码示例（底部抽屉） ============ */
+  #docs-btn {
+    position:fixed; right:14px; bottom:14px; z-index:10001;
+    min-width:0; padding:10px 18px; font-size:14px; letter-spacing:2px;
+  }
+  #docs {
+    position:fixed; inset:auto 0 0 0; z-index:10002;
+    max-height:72vh; overflow:auto;
+    background:rgba(8,11,16,.97); border-top:3px solid #e8b45a;
+    padding:22px clamp(16px,4vw,48px) 40px;
+    transform:translateY(101%); transition:transform .25s;
+  }
+  #docs.open { transform:translateY(0); }
+  #docs h2 { color:#f5d78e; font-size:20px; margin:18px 0 10px; letter-spacing:2px; }
+  #docs ol, #docs ul { padding-left:22px; line-height:1.9; font-size:14px; }
+  #docs pre {
+    background:#0d1219; border:1px solid #26313f; border-radius:8px;
+    padding:14px; overflow:auto; font-size:13px; line-height:1.6;
+    color:#b9e07c; margin:8px 0 4px;
+  }
+  #docs .close { position:sticky; top:0; float:right; }
+  .tag { display:inline-block; background:#26313f; color:#9db2c8;
+         font-size:12px; padding:2px 8px; border-radius:4px; margin-right:6px; }
+</style>
+</head>
+<body>
+
+<!-- ===== 背景动画层（无射线拦截） ===== -->
+<div id="bg-layer"><canvas id="bg-canvas"></canvas></div>
+
+<!-- ===== 交互层：强制置顶 ===== -->
+<div id="ui-layer">
+  <!-- 界面 A：主菜单（容错兜底渲染，见 JS） -->
+  <div id="screen-home" class="screen" style="display:flex;flex-direction:column;align-items:center;gap:18px;">
+    <h1 class="title">战火塔防</h1>
+    <div class="subtitle">WAR3-STYLE TOWER DEFENSE · 首页 UI 修复演示</div>
+    <button id="btn-start" class="btn primary" style="display:none;">▶ 开始游戏</button>
+    <div id="start-fallback-note" style="display:none;color:#ff9c6b;font-size:13px;">
+      （资源加载异常，已使用兜底按钮）
+    </div>
+  </div>
+
+  <!-- 界面 B：种族选择 -->
+  <div id="screen-race" class="screen" style="display:none;flex-direction:column;align-items:center;gap:18px;">
+    <h1 class="title" style="font-size:clamp(22px,4vw,36px);">选择你的种族</h1>
+    <div class="race-grid">
+      <div class="card" data-race="human"><span class="icon">🛡️</span><span class="name">人族</span><div class="desc">箭塔 · 火炮 · 稳健推进</div></div>
+      <div class="card" data-race="night"><span class="icon">🌙</span><span class="name">暗夜</span><div class="desc">古树 · 缠绕 · 控场减速</div></div>
+      <div class="card" data-race="orc"><span class="icon">🪓</span><span class="name">兽族</span><div class="desc">图腾 · 战鼓 · 爆发输出</div></div>
+      <div class="card" data-race="undead"><span class="icon">💀</span><span class="name">亡灵</span><div class="desc">瘟疫 · 亡语 · 持续消耗</div></div>
+    </div>
+    <button class="btn small" data-back="home">← 返回</button>
+  </div>
+
+  <!-- 界面 C：地图选择 -->
+  <div id="screen-map" class="screen" style="display:none;flex-direction:column;align-items:center;gap:18px;">
+    <h1 class="title" style="font-size:clamp(22px,4vw,36px);">选择地图 <span id="chosen-race" style="font-size:16px;color:#9db2c8;"></span></h1>
+    <div class="map-grid">
+      <div class="card" data-map="forests"><span class="icon">🌲</span><span class="name">翡翠森林</span><div class="desc">难度 ★☆☆ · 10 波</div></div>
+      <div class="card" data-map="desert"><span class="icon">🏜️</span><span class="name">灼热荒漠</span><div class="desc">难度 ★★☆ · 15 波</div></div>
+      <div class="card" data-map="frost"><span class="icon">❄️</span><span class="name">冰封要塞</span><div class="desc">难度 ★★★ · 20 波</div></div>
+    </div>
+    <div style="display:flex;gap:12px;">
+      <button class="btn small" data-back="race">← 重选种族</button>
+      <button class="btn primary" id="btn-enter-game" style="min-width:200px;font-size:20px;">进入游戏 ⚔</button>
+    </div>
+  </div>
+
+  <!-- 界面 D：进入成功（下一步占位） -->
+  <div id="screen-loading" class="screen" style="display:none;flex-direction:column;align-items:center;gap:14px;">
+    <h1 class="title" style="font-size:clamp(22px,4vw,36px);">进入战场！</h1>
+    <div class="subtitle" id="loading-summary"></div>
+    <button class="btn small" data-back="map">← 返回选图</button>
+  </div>
+</div>
+
+<div id="boot-note">boot: initializing…</div>
+<button id="docs-btn" class="btn">📋 排查步骤 &amp; 三端代码</button>
+
+<!-- ===== 排查步骤 + Unity/Godot/Canvas 代码 ===== -->
+<div id="docs">
+  <button class="btn small close" id="docs-close">收起 ✕</button>
+  <h2>一、为什么“背景能动，但没有按钮 / 点不动”——排查步骤</h2>
+  <ol>
+    <li><b>看层级</b>：背景动画对象的 Canvas/Sprite 是否盖在 Button 之上？——Hierarchy 里把 Button 拖到最下（=渲染最上），或 Canvas 里 UI 应在 <code>Canvas &gt; Layer 0</code>，背景在 <code>Camera &gt; Sprite</code>。</li>
+    <li><b>看射线拦截</b>：选中背景 Image/Animation 节点 → Unity: 取消勾选 <code>Raycast Target</code>；Godot: <code>mouse_filter = IGNORE</code>；Canvas: <code>pointer-events:none</code>。90% 的“点不动”是这个。</li>
+    <li><b>看有没有渲染出来</b>：按钮 <code>alpha=0</code>、<code>scale=0</code>、被动画停在第 0 帧？先用 <code>Button.gameObject.activeInHierarchy / visible</code> 打日志确认。</li>
+    <li><b>看异步流程</b>：加载存档/音效的 <code>await</code> 抛异常 → 后续 <code>ShowMainUI()</code> 没被执行。用 <code>try/catch/finally</code> 或 <code>Promise.race(timeout)</code> 保证 UI 一定渲染。</li>
+    <li><b>看场景切换</b>：“开始”按钮的 <code>onClick</code> 是否绑了？事件系统是否存在（场景里要有 <code>EventSystem</code> / <code>Control</code>）？</li>
+    <li><b>看 Canvas Scaler</b>：不同分辨率下按钮被挤出屏幕——设 <code>Scale With Screen Size (1280x720)</code> + anchoring 居中。</li>
+    <li><b>最小复现</b>：新建空场景只放“背景+一个按钮”，能点 = 原场景是遮挡/时序问题；不能点 = EventSystem/层级问题。</li>
+  </ol>
+
+  <h2>二、通用原则（本页已实现）</h2>
+  <ul>
+    <li>① 交互层 <code>z-index:9999</code> 置顶，背景 <code>pointer-events:none</code>（关闭 RaycastTarget）。</li>
+    <li>② 资源加载无论成败，<code>finally</code> 中强制渲染“开始游戏”按钮，超时 3 秒视为失败也渲染。</li>
+    <li>③ “开始”直接同步切屏到种族选择 → 地图选择，无过场动画依赖。</li>
+  </ul>
+
+  <h2>三、Unity C# 修复代码</h2>
+  <pre><span class="tag">HomeUIController.cs</span>
+using System.Collections;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class HomeUIController : MonoBehaviour
+{
+    [Header("强制置顶")]
+    public Canvas uiCanvas;            // UI 专用 Canvas（Overlay + 最高 Order）
+    public Image backgroundAnim;       // 背景动画图
+    public GameObject racePanel, mapPanel, homePanel;
+
+    IEnumerator Start()
+    {
+        // 关键1：关闭背景射线拦截 + UI 置顶
+        backgroundAnim.raycastTarget = false;
+        uiCanvas.overrideSorting = true;
+        uiCanvas.sortingOrder = 32767;
+
+        // 关键2：兜底渲染主按钮（即使加载失败）
+        var btnStart = homePanel.GetComponentInChildren<Button>(true);
+        btnStart.gameObject.SetActive(false);
+        bool ok = false;
+        yield return StartCoroutine(LoadResWithTimeout(3f, r => ok = r));
+        // 无论成败都强制显示
+        btnStart.gameObject.SetActive(true);
+        if (!ok) Debug.LogWarning("[HomeUI] 资源加载失败/超时，已用兜底 UI");
+
+        btnStart.onClick.RemoveAllListeners();
+        btnStart.onClick.AddListener(EnterRaceSelect);   // 关键3：点击→种族选择
+    }
+
+    IEnumerator LoadResWithTimeout(float t, System.Action&lt;bool&gt; done)
+    {
+        float timer = 0;
+        // 假装异步加载存档/音效；任何异常都算失败
+        var op = AudioBundle.LoadAsync(); // 你的加载
+        while (!op.isDone &amp;&amp; timer &lt; t) { timer += Time.deltaTime; yield return null; }
+        done(op.isDone);
+    }
+
+    public void EnterRaceSelect()      // 点“开始游戏”
+    {
+        homePanel.SetActive(false);
+        racePanel.SetActive(true);     // 种族：人/夜/兽/鬼
+        mapPanel.SetActive(false);
+    }
+    public void EnterMapSelect(string race) { racePanel.SetActive(false); mapPanel.SetActive(true); }
+}</pre>
+
+  <h2>四、Godot 4 修复代码（GDScript）</h2>
+  <pre><span class="tag">home_ui.gd</span>
+extends Control
+
+@onready var home   = %HomePanel
+@onready var race   = %RacePanel
+@onready var map    = %MapPanel
+@onready var bg     = $BackgroundAnim   # Sprite2D / TextureRect
+@onready var btn    = %BtnStart
+
+func _ready() -> void:
+    # 关键1：背景不接收鼠标 + UI 顶层
+    if bg is TextureRect: bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    elif bg is Node2D:    bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    z_index = 100
+    # 关键2：兜底渲染开始按钮（3 秒超时也不拦 UI）
+    btn.visible = false
+    var ok = await _load_with_timeout(3.0)
+    btn.visible = true            # 无论成败都显示
+    if not ok: push_warning("资源加载失败，使用兜底 UI")
+    btn.pressed.connect(enter_race_select)   # 关键3
+
+func _load_with_timeout(t: float) -> bool:
+    var task = _load_save_async()            # 你的异步加载
+    var timer = 0.0
+    while not task.is_completed() and timer &lt; t:
+        timer += get_process_delta_time()
+        await get_tree().process_frame
+    return task.is_completed()
+
+func enter_race_select() -> void:
+    home.visible = false
+    race.visible = true      # 人/夜/兽/鬼
+func enter_map_select() -> void:
+    race.visible = false
+    map.visible = true       # 地图选择</pre>
+
+  <h2>五、HTML5 Canvas / DOM 修复代码（本页实现）</h2>
+  <pre><span class="tag">core.js</span>
+// 关键1：交互层置顶，背景关闭射线拦截
+bgLayer.style.pointerEvents = 'none';   // = raycastTarget=false
+uiLayer.style.zIndex = 9999;
+
+// 关键2：异步容错 —— 超时/失败也强制渲染开始按钮
+async function boot() {
+  const btn = document.getElementById('btn-start');
+  try {
+    await Promise.race([
+      Promise.all([loadData(), loadAudio()]),   // 真实加载
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000)),
+    ]);
+  } catch (e) {
+    document.getElementById('start-fallback-note').style.display = 'block';
+  } finally {
+    btn.style.display = 'inline-block';        // 兜底：一定显示
+  }
+}
+boot();
+
+// 关键3：开始 → 同步切到种族/地图选择，无动画依赖
+btn.onclick = () => show('screen-race');
+document.querySelectorAll('[data-race]').forEach(el =>
+  el.onclick = () => { chosenRace = el.dataset.race; show('screen-map'); });</pre>
+</div>
+
+<script>
+/* =====================================================
+   首页 UI 逻辑 —— 极简 / 高容错 / 防遮挡
+   ===================================================== */
+
+/* ---------- 关键1：背景动画（纯装饰，天然不拦截点击） ---------- */
+(function bgAnimation(){
+  const c = document.getElementById('bg-canvas'), ctx = c.getContext('2d');
+  let W, H, particles = [];
+  function resize(){ W = c.width = innerWidth; H = c.height = innerHeight; }
+  addEventListener('resize', resize); resize();
+  for (let i = 0; i < 70; i++) particles.push({
+    x: Math.random()*innerWidth, y: Math.random()*innerHeight,
+    vx:(Math.random()-.5)*.4, vy:(Math.random()-.5)*.4,
+    r: Math.random()*2.2+.5
+  });
+  (function loop(){
+    ctx.clearRect(0,0,W,H);
+    // 战争迷雾渐变底
+    const g = ctx.createRadialGradient(W*.5,H*.4,0,W*.5,H*.4,Math.max(W,H)*.8);
+    g.addColorStop(0,'#16202e'); g.addColorStop(1,'#070a0f');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    // 漂浮火星
+    for (const p of particles){
+      p.x += p.vx; p.y += p.vy;
+      if (p.x<0) p.x=W; if (p.x>W) p.x=0;
+      if (p.y<0) p.y=H; if (p.y>H) p.y=0;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7);
+      ctx.fillStyle = 'rgba(245,170,80,.55)'; ctx.fill();
+    }
+    requestAnimationFrame(loop);
+  })();
+})();
+
+/* ---------- 关键2：异步加载容错（失败/超时也强制渲染主按钮） ---------- */
+const bootNote = document.getElementById('boot-note');
+function fakeLoad(ms, fail){  // 模拟存档/音效加载，fail=true 模拟失败
+  return new Promise((res, rej) =>
+    setTimeout(() => fail ? rej(new Error('load fail')) : res('ok'), ms));
+}
+async function boot(){
+  const btn = document.getElementById('btn-start');
+  const note = document.getElementById('start-fallback-note');
+  try {
+    bootNote.textContent = 'boot: loading data + audio…';
+    await Promise.race([
+      Promise.all([ fakeLoad(600, false), fakeLoad(900, false) ]),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000))
+    ]);
+    bootNote.textContent = 'boot: ready ✓ 资源加载成功';
+  } catch(e){
+    // 无论失败还是超时，都渲染按钮
+    bootNote.textContent = 'boot: 资源异常(' + e.message + ')，已启用兜底 UI ✓';
+    note.style.display = 'block';
+  } finally {
+    // 关键兜底：finally 里一定显示“开始游戏”
+    btn.style.display = 'inline-block';
+  }
+}
+boot();
+
+/* ---------- 关键3：极简切屏（无复杂动画，直接跳转） ---------- */
+const screens = ['screen-home','screen-race','screen-map','screen-loading'];
+function show(id){
+  screens.forEach(s => document.getElementById(s).style.display =
+    (s === id) ? 'flex' : 'none');
+}
+document.getElementById('btn-start').onclick = () => show('screen-race');
+
+let chosenRace = null, chosenMap = null;
+const raceNames = { human:'人族', night:'暗夜', orc:'兽族', undead:'亡灵' };
+const mapNames  = { forests:'翡翠森林', desert:'灼热荒漠', frost:'冰封要塞' };
+
+document.querySelectorAll('[data-race]').forEach(el => el.onclick = () => {
+  chosenRace = el.dataset.race;
+  document.getElementById('chosen-race').textContent =
+    '（当前：' + raceNames[chosenRace] + '）';
+  show('screen-map');
+});
+document.querySelectorAll('[data-map]').forEach(el => el.onclick = () => {
+  chosenMap = el.dataset.map;
+  document.querySelectorAll('[data-map]').forEach(x => x.style.borderColor = '#4a5b70');
+  el.style.borderColor = '#e8b45a';
+});
+document.getElementById('btn-enter-game').onclick = () => {
+  if (!chosenMap){ alert('请先选择一张地图'); return; }
+  document.getElementById('loading-summary').textContent =
+    '种族：' + raceNames[chosenRace] + '　|　地图：' + mapNames[chosenMap] + '　|　波次加载中…';
+  show('screen-loading');
+};
+document.querySelectorAll('[data-back]').forEach(el =>
+  el.onclick = () => show('screen-' + el.dataset.back));
+
+/* ---------- 文档抽屉 ---------- */
+const docs = document.getElementById('docs');
+document.getElementById('docs-btn').onclick  = () => docs.classList.add('open');
+document.getElementById('docs-close').onclick = () => docs.classList.remove('open');
+</script>
+</body>
+</html>
