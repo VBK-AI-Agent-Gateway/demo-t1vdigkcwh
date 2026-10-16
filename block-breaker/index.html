@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="打砖块 Block Breaker - 浏览器即玩的经典街机游戏">
+<title>打砖块 Block Breaker</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="game-wrap" role="main">
+  <header class="hud">
+    <div class="hud-item">得分 <strong id="score">0</strong></div>
+    <div class="hud-item">关卡 <strong id="level">1</strong></div>
+    <div class="hud-item">生命 <strong id="lives">3</strong></div>
+    <button id="btn-pause" type="button" aria-label="暂停或继续游戏">暂停</button>
+    <button id="btn-sound" type="button" aria-label="开关音效">音效: 开</button>
+  </header>
+
+  <div class="stage">
+    <canvas id="game" width="800" height="600" role="img" aria-label="打砖块游戏画布，用鼠标或触摸控制底部挡板反弹小球击碎砖块"></canvas>
+
+    <div id="overlay" class="overlay">
+      <div class="panel">
+        <h1 id="overlay-title">打砖块</h1>
+        <p id="overlay-text">用鼠标 / 手指移动挡板，把砖块全部击碎！</p>
+        <button id="btn-start" type="button">开始游戏</button>
+        <p class="tips">键盘：← → 移动 · 空格 暂停 · P 暂停</p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="help">
+    <p>鼠标 / 触摸拖动控制挡板 · 空格或点击「暂停」暂停 · 消灭全部砖块进入下一关</p>
+  </footer>
+</main>
+<script src="game.js"></script>
+</body>
+</html>
