@@ -1,0 +1,9 @@
+{
+  "name": "demo-t1vdigkcwh",
+  "version": "1.0.0",
+  "private": true,
+  "description": "deploy.sh landing page + block-breaker + war3-td static demo site",
+  "scripts": {
+    "start": "cd deliver && python3 -m http.server 8080"
+  }
+}
