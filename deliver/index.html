@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deploy · 持续交付控制台</title>
+<meta name="description" content="从提交到上线，一条流水线管到底：构建、测试、预览、发布、回滚，全程可观测。">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo-dot"></span>
+    <span class="logo-text">deploy<span class="logo-sep">.</span>sh</span>
+  </div>
+  <nav class="nav">
+    <a href="#pipeline">流水线</a>
+    <a href="#features">能力</a>
+    <a href="#stats">数据</a>
+    <a href="#start">上手</a>
+</nav>
+  <a class="btn btn-ghost" href="#start">开始部署</a>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-copy">
+      <div class="badge"><span class="pulse"></span> 主干分支 · 自动发布已开启</div>
+      <h1>部署，<br><em>应该是无聊的事。</em></h1>
+      <p class="sub">push 代码之后你不需要盯着屏幕。构建、测试、预览、发布、回滚 —— 一条流水线跑完，每一步都可见、可追溯、可一键撤销。</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#start">立即部署 →</a>
+        <a class="btn btn-outline" href="#pipeline">看它怎么跑</a>
+      </div>
+      <ul class="trust">
+        <li>零配置起步</li><li>预览环境每 PR 一个</li><li>原子发布 & 秒级回滚</li>
+      </ul>
+    </div>
+
+    <div class="hero-panel" id="pipeline">
+      <div class="terminal">
+        <div class="term-head">
+          <span class="tdot red"></span><span class="tdot yellow"></span><span class="tdot green"></span>
+          <span class="term-title">deploy — 流水线 #2481</span>
+        </div>
+        <div class="term-body">
+          <div class="pipe" id="pipeStages">
+            <div class="stage" data-i="0"><span class="s-icon">○</span><span class="s-name">checkout</span></div>
+            <div class="stage" data-i="1"><span class="s-icon">○</span><span class="s-name">install</span></div>
+            <div class="stage" data-i="2"><span class="s-icon">○</span><span class="s-name">lint</span></div>
+            <div class="stage" data-i="3"><span class="s-icon">○</span><span class="s-name">test</span></div>
+            <div class="stage" data-i="4"><span class="s-icon">○</span><span class="s-name">build</span></div>
+            <div class="stage" data-i="5"><span class="s-icon">○</span><span class="s-name">preview</span></div>
+            <div class="stage" data-i="6"><span class="s-icon">○</span><span class="s-name">release</span></div>
+          </div>
+          <pre class="log" id="termLog"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="strip" id="stats">
+    <div class="stat"><div class="num" data-count="99.98" data-suffix="%" data-dec="2">0</div><div class="label">发布成功率</div></div>
+    <div class="stat"><div class="num" data-count="42" data-suffix="s">0</div><div class="label">平均构建时长</div></div>
+    <div class="stat"><div class="num" data-count="1.2" data-suffix="s" data-dec="1">0</div><div class="label">回滚耗时</div></div>
+    <div class="stat"><div class="num" data-count="18" data-suffix="k+">0</div><div class="label">每日发布次数</div></div>
+  </section>
+
+  <section class="features" id="features">
+    <h2 class="sec-title">交付路上的每一公里，都有人管</h2>
+    <p class="sec-sub">不用拼装十几件工具，从代码合并到用户可见，中间那段黑盒被彻底打开。</p>
+    <div class="cards">
+      <article class="card">
+        <div class="card-ico">⌘</div>
+        <h3>零配置流水线</h3>
+        <p>自动识别技术栈，默认规则开箱即用，需要时再用一行 YAML 精调。</p>
+      </article>
+      <article class="card">
+        <div class="card-ico">◧</div>
+        <h3>每 PR 一个预览环境</h3>
+        <p>评审还没合并，可点击的真实链接已经躺在评论区里，UI 问题就地暴露。</p>
+      </article>
+      <article class="card">
+        <div class="card-ico">⟲</div>
+        <h3>秒级回滚</h3>
+        <p>每次发布都是不可变快照，出问题点一下，上一个版本立刻回来。</p>
+      </article>
+      <article class="card">
+        <div class="card-ico">◉</div>
+        <h3>全链路可观测</h3>
+        <p>构建日志、部署差异、耗时火焰图、变更内容，全部留存可检索。</p>
+      </article>
+      <article class="card">
+        <div class="card-ico">⛨</div>
+        <h3>密钥与权限隔离</h3>
+        <p>环境级 secret 加密存储，细粒度角色控制谁能对生产环境动手。</p>
+      </article>
+      <article class="card">
+        <div class="card-ico">⚡</div>
+        <h3>边缘即刻分发</h3>
+        <p>产物构建一次，全球节点同步生效，缓存自动刷新无需手动干预。</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="flow">
+    <h2 class="sec-title">三步，接上你的仓库</h2>
+    <ol class="steps">
+      <li><span class="step-no">01</span><h3>连接仓库</h3><p>GitHub / GitLab 一键授权，选中仓库即可，无需迁移代码。</p></li>
+      <li><span class="step-no">02</span><h3>确认规则</h3><p>默认策略已替你写好，分支、环境、通知按需修改。</p></li>
+      <li><span class="step-no">03</span><h3>推送上线</h3><p>之后每次 push，都由流水线安静地完成剩下的事。</p></li>
+    </ol>
+  </section>
+
+  <section class="terminal-cta" id="start">
+    <div class="cta-inner">
+      <h2>下一次 push，交给流水线</h2>
+      <p>五分钟接入，今天就把发布日变成普通日。</p>
+      <div class="code-line"><code><span class="c-p">$</span> npx deploy-sh init <span class="c-flag">--auto</span></code><button class="copy" id="copyBtn" title="复制">复制</button></div>
+      <div class="cta-row center">
+        <a class="btn btn-primary" href="#">免费开始</a>
+        <a class="btn btn-outline" href="#pipeline">查看流水线</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="f-left">© 2025 deploy.sh — 部署应该是无聊的事</div>
+  <div class="f-links"><a href="#">文档</a><a href="#">状态页</a><a href="#">更新日志</a><a href="#">GitHub</a></div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
