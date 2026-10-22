@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>极简 OA 办公系统</title>
+<style>
+:root{
+  --blue:#2563eb; --blue-d:#1d4ed8; --blue-l:#eff6ff;
+  --bg:#f4f7fb; --card:#ffffff; --line:#e5eaf2;
+  --txt:#1e293b; --txt2:#64748b; --txt3:#94a3b8;
+  --green:#16a34a; --green-l:#f0fdf4;
+  --red:#dc2626; --red-l:#fef2f2;
+  --orange:#ea580c; --orange-l:#fff7ed;
+  --radius:14px;
+  --shadow:0 1px 3px rgba(15,23,42,.06),0 4px 16px rgba(15,23,42,.05);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--txt);font-size:15px;line-height:1.6;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font-family:inherit;font-size:15px;color:var(--txt)}
+
+.topbar{
+  position:sticky;top:0;z-index:50;
+  background:linear-gradient(135deg,#1e40af 0%,#2563eb 55%,#3b82f6 100%);
+  color:#fff;box-shadow:0 2px 12px rgba(37,99,235,.28);
+}
+.topbar-inner{
+  max-width:1080px;margin:0 auto;padding:14px 18px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.5px}
+.logo-badge{
+  width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.18);
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  border:1px solid rgba(255,255,255,.25);
+}
+.role-switch{display:flex;gap:6px;background:rgba(255,255,255,.14);padding:4px;border-radius:10px;margin-left:auto;flex-wrap:wrap}
+.role-btn{
+  padding:7px 14px;border-radius:8px;color:rgba(255,255,255,.85);font-size:13.5px;
+  font-weight:500;transition:.2s;white-space:nowrap;
+}
+.role-btn:hover{background:rgba(255,255,255,.15);color:#fff}
+.role-btn.active{background:#fff;color:var(--blue-d);font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.user-chip{display:flex;align-items:center;gap:8px;font-size:13.5px;background:rgba(255,255,255,.14);padding:6px 12px;border-radius:20px}
+.avatar{
+  width:26px;height:26px;border-radius:50%;background:#fbbf24;color:#7c2d12;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;
+}
+.nav{
+  max-width:1080px;margin:16px auto 0;padding:0 18px;
+  display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;
+}
+.nav::-webkit-scrollbar{display:none}
+.nav-btn{
+  display:flex;align-items:center;gap:7px;padding:10px 18px;border-radius:10px;
+  background:var(--card);color:var(--txt2);font-size:14.5px;font-weight:500;
+  border:1px solid var(--line);transition:.2s;white-space:nowrap;box-shadow:0 1px 2px rgba(15,23,42,.04);
+}
+.nav-btn:hover{border-color:#bfdbfe;color:var(--blue)}
+.nav-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 4px 12px rgba(37,99,235,.3)}
+.nav-badge{
+  min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--red);
+  color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;
+}
+.nav-btn.active .nav-badge{background:#fff;color:var(--red)}
+main{max-width:1080px;margin:0 auto;padding:18px 18px 60px}
+.page{display:none;animation:fade .25s ease}
+.page.show{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.card{
+  background:var(--card);border-radius:var(--radius);border:1px solid var(--line);
+  box-shadow:var(--shadow);padding:20px;margin-bottom:18px;
+}
+.card-title{
+  font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;
+}
+.card-title::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--blue)}
+.card-title .sub{font-weight:400;font-size:13px;color:var(--txt3);margin-left:auto}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:18px}
+.stat{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.stat::after{content:"";position:absolute;right:-20px;top:-20px;width:70px;height:70px;border-radius:50%;background:var(--blue-l)}
+.stat .num{font-size:26px;font-weight:800;color:var(--blue-d);line-height:1.2;position:relative;z-index:1}
+.stat .lbl{font-size:13px;color:var(--txt2);margin-top:2px;position:relative;z-index:1}
+.stat.g .num{color:var(--green)} .stat.g::after{background:var(--green-l)}
+.stat.o .num{color:var(--orange)} .stat.o::after{background:var(--orange-l)}
+.stat.r .num{color:var(--red)} .stat.r::after{background:var(--red-l)}
+.clock-face{
+  text-align:center;padding:26px 10px 8px;font-size:44px;font-weight:800;
+  letter-spacing:2px;color:var(--blue-d);font-variant-numeric:tabular-nums;
+}
+.clock-date{text-align:center;color:var(--txt2);font-size:14px;margin-bottom:20px}
+.punch-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+.punch-btn{
+  min-width:150px;padding:15px 26px;border-radius:12px;font-size:16px;font-weight:700;
+  color:#fff;transition:.2s;display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.punch-btn small{font-weight:400;font-size:12px;opacity:.85}
+.punch-btn.in{background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 6px 16px rgba(37,99,235,.35)}
+.punch-btn.out{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 16px rgba(20,184,166,.3)}
+.punch-btn:disabled{background:#cbd5e1;box-shadow:none;cursor:not-allowed;opacity:.75}
+.punch-btn:not(:disabled):hover{transform:translateY(-2px);filter:brightness(1.06)}
+.punch-status{text-align:center;margin-top:14px;font-size:14.5px}
+.tag{display:inline-block;padding:3px 11px;border-radius:20px;font-size:12.5px;font-weight:600}
+.tag.ok{background:var(--green-l);color:var(--green)}
+.tag.late{background:var(--orange-l);color:var(--orange)}
+.tag.none{background:#f1f5f9;color:var(--txt3)}
+.tag.pend{background:var(--blue-l);color:var(--blue-d)}
+.tag.pass{background:var(--green-l);color:var(--green)}
+.tag.rej{background:var(--red-l);color:var(--red)}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:520px}
+th{background:#f8fafc;color:var(--txt2);font-weight:600;text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px;white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafcff}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.field label{display:block;font-size:13.5px;color:var(--txt2);margin-bottom:6px;font-weight:500}
+.field input,.field select,.field textarea{
+  width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#fafbfd;
+  outline:none;transition:.2s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.field textarea{resize:vertical;min-height:80px}
+.form-actions{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}
+.btn{
+  padding:10px 22px;border-radius:9px;font-size:14.5px;font-weight:600;transition:.2s;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.btn-primary{background:var(--blue);color:#fff;box-shadow:0 4px 10px rgba(37,99,235,.28)}
+.btn-primary:hover{background:var(--blue-d)}
+.btn-ghost{background:#f1f5f9;color:var(--txt2);border:1px solid var(--line)}
+.btn-ghost:hover{background:#e2e8f0}
+.btn-sm{padding:6px 14px;font-size:13px;border-radius:7px}
+.btn-pass{background:var(--green);color:#fff}
+.btn-pass:hover{background:#15803d}
+.btn-rej{background:#fff;color:var(--red);border:1px solid #fecaca}
+.btn-rej:hover{background:var(--red-l)}
+.list{display:flex;flex-direction:column;gap:12px}
+.item{
+  border:1px solid var(--line);border-radius:11px;padding:14px 16px;background:#fff;
+  display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;transition:.2s;
+}
+.item:hover{border-color:#bfdbfe;box-shadow:0 3px 10px rgba(37,99,235,.08)}
+.item-main{flex:1;min-width:200px}
+.item-title{font-weight:600;font-size:15px;margin-bottom:3px}
+.item-meta{font-size:13px;color:var(--txt3)}
+.item-desc{font-size:13.5px;color:var(--txt2);margin-top:5px;word-break:break-all}
+.item-ops{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.empty{text-align:center;padding:34px 10px;color:var(--txt3);font-size:14px}
+.empty::before{content:"📭";display:block;font-size:34px;margin-bottom:8px}
+.type-pill{
+  display:inline-block;padding:2px 9px;border-radius:6px;font-size:12px;font-weight:600;
+  background:var(--blue-l);color:var(--blue-d);margin-right:6px;
+}
+.type-pill.leave{background:#fdf4ff;color:#a21caf}
+.type-pill.expense{background:#fefce8;color:#a16207}
+.notice-body{font-size:14px;color:var(--txt2);margin-top:6px;white-space:pre-wrap;word-break:break-all}
+.important{border-left:4px solid var(--red)}
+#toast{
+  position:fixed;left:50%;top:22px;transform:translateX(-50%) translateY(-80px);
+  background:#0f172a;color:#fff;padding:11px 22px;border-radius:10px;font-size:14.5px;
+  z-index:999;opacity:0;transition:.32s cubic-bezier(.4,0,.2,1);box-shadow:0 8px 24px rgba(0,0,28,.3);
+  max-width:88vw;text-align:center;pointer-events:none;
+}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.modal-mask{
+  position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:100;
+  display:none;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(3px);
+}
+.modal-mask.show{display:flex}
+.modal{
+  background:#fff;border-radius:16px;width:100%;max-width:460px;padding:22px;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);animation:pop .2s ease;max-height:88vh;overflow-y:auto;
+}
+@keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+.modal h3{font-size:17px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.modal h3::before{content:"";width:4px;height:16px;background:var(--blue);border-radius:2px}
+.modal .field{margin-bottom:13px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.hint{font-size:13px;color:var(--txt3);background:var(--blue-l);border-radius:9px;padding:10px 14px;margin-bottom:16px}
+.hint b{color:var(--blue-d)}
+@media (max-width:640px){
+  body{font-size:14.5px}
+  .topbar-inner{padding:11px 14px;gap:10px}
+  .logo span{display:none}
+  .role-switch{margin-left:0;width:100%;order:3;justify-content:space-between}
+  .role-btn{flex:1;text-align:center;padding:8px 6px;font-size:13px}
+  .user-chip{margin-left:auto}
+  .nav{padding:0 14px;margin-top:12px}
+  .nav-btn{padding:9px 14px;font-size:14px}
+  main{padding:14px 14px 60px}
+  .card{padding:16px;border-radius:12px}
+  .clock-face{font-size:38px}
+  .punch-btn{min-width:0;flex:1;padding:14px 18px;font-size:15px}
+  .punch-row{gap:10px}
+  .stats{grid-template-columns:repeat(2,1fr);gap:10px}
+  .stat{padding:13px 14px}
+  .stat .num{font-size:22px}
+  table{min-width:460px}
+  th,td{padding:9px 11px;font-size:13.5px}
+  .item{padding:12px 14px}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="logo"><div class="logo-badge">🏢</div><span>极简 OA 办公系统</span></div>
+    <div class="user-chip"><div class="avatar" id="userAvatar">张</div><span id="userName">张伟 · 普通员工</span></div>
+    <div class="role-switch">
+      <button class="role-btn active" data-role="employee">🧑‍💼 普通员工</button>
+      <button class="role-btn" data-role="manager">👩‍💼 部门经理</button>
+      <button class="role-btn" data-role="admin">🛠 系统管理员</button>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <button class="nav-btn active" data-page="home">🏠 首页</button>
+  <button class="nav-btn" data-page="attendance">⏰ 考勤打卡</button>
+  <button class="nav-btn" data-page="workflow">📋 流程审批 <span class="nav-badge" id="badgeWorkflow" style="display:none">0</span></button>
+  <button class="nav-btn" data-page="notice">📢 通知公告</button>
+</nav>
+
+<main>
+  <section class="page show" id="page-home">
+    <div class="hint" id="homeHint"></div>
+    <div class="stats" id="homeStats"></div>
+    <div class="card">
+      <div class="card-title">今日概览 <span class="sub" id="homeDate"></span></div>
+      <div id="homeRecent"></div>
+    </div>
+  </section>
+
+  <section class="page" id="page-attendance">
+    <div class="card">
+      <div class="card-title">考勤打卡 <span class="sub" id="attMonth"></span></div>
+      <div class="clock-face" id="clockNow">--:--:--</div>
+      <div class="clock-date" id="clockDate"></div>
+      <div class="punch-row">
+        <button class="punch-btn in" id="btnPunchIn">上班打卡<small id="punchInTime">未打卡</small></button>
+        <button class="punch-btn out" id="btnPunchOut" disabled>下班打卡<small id="punchOutTime">未打卡</small></button>
+      </div>
+      <div class="punch-status" id="punchStatus"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">本月打卡记录 <span class="sub" id="attSummary"></span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>日期</th><th>星期</th><th>上班时间</th><th>下班时间</th><th>状态</th><th>工时</th></tr></thead>
+          <tbody id="attTable"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="attEmpty" style="display:none">本月暂无打卡记录</div>
+    </div>
+  </section>
+
+  <section class="page" id="page-workflow">
+    <div class="card">
+      <div class="card-title">提交申请 <span class="sub" id="wfRoleHint"></span></div>
+      <div class="form-grid">
+        <div class="field">
+          <label>申请类型</label>
+          <select id="wfType">
+            <option value="leave">请假申请</option>
+            <option value="expense">报销申请</option>
+            <option value="general">通用审批</option>
+          </select>
+        </div>
+        <div class="field" id="wfLeaveField" style="display:none">
+          <label>请假类型 / 天数</label>
+          <input id="wfLeaveDetail" placeholder="如：年假 2 天">
+        </div>
+        <div class="field" id="wfAmountField" style="display:none">
+          <label>报销金额（元）</label>
+          <input id="wfAmount" type="number" min="0" step="0.01" placeholder="如：1280.00">
+        </div>
+        <div class="field">
+          <label>事由说明</label>
+          <input id="wfReason" placeholder="请填写申请事由（必填）">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="btnSubmitWf">🚀 提交申请</button>
+      </div>
+    </div>
+
+    <div class="card" id="cardPending">
+      <div class="card-title">待我审批 <span class="sub" id="pendingCount"></span></div>
+      <div class="list" id="pendingList"></div>
+      <div class="empty" id="pendingEmpty" style="display:none">暂无待办事项 🎉</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">我的申请记录</div>
+      <div class="list" id="myWfList"></div>
+      <div class="empty" id="myWfEmpty" style="display:none">还没有提交过申请</div>
+    </div>
+
+    <div class="card" id="cardAllWf">
+      <div class="card-title">全部申请（管理员视图）</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>申请人</th><th>类型</th><th>内容</th><th>提交时间</th><th>状态</th><th>审批意见</th></tr></thead>
+          <tbody id="allWfTable"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="allWfEmpty" style="display:none">暂无申请记录</div>
+    </div>
+  </section>
+
+  <section class="page" id="page-notice">
+    <div class="card" id="cardPublish">
+      <div class="card-title">发布公告 <span class="sub">仅管理员可发布</span></div>
+      <div class="form-grid">
+        <div class="field">
+          <label>公告标题</label>
+          <input id="ntTitle" placeholder="如：关于春节放假安排的通知">
+        </div>
+        <div class="field">
+          <label>是否重要</label>
+          <select id="ntImportant"><option value="0">普通公告</option><option value="1">⭐ 重要公告</option></select>
+        </div>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label>公告内容</label>
+        <textarea id="ntContent" rows="4" placeholder="请输入公告正文…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="btnPublish">📢 发布公告</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">公司公告 <span class="sub" id="ntCount"></span></div>
+      <div class="list" id="ntList"></div>
+      <div class="empty" id="ntEmpty" style="display:none">暂无公告</div>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<div class="modal-mask" id="rejectMask">
+  <div class="modal">
+    <h3>拒绝申请</h3>
+    <div class="field">
+      <label>拒绝理由（必填）</label>
+      <textarea id="rejectReason" rows="3" placeholder="请说明拒绝原因…"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btnRejectCancel">取消</button>
+      <button class="btn btn-primary" style="background:var(--red);box-shadow:none" id="btnRejectOk">确认拒绝</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var $=function(s){return document.querySelector(s)};
+var $$=function(s){return document.querySelectorAll(s)};
+function pad(n){return n<10?"0"+n:""+n}
+function fmtDate(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function fmtTime(d){return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds())}
+function fmtFull(d){return fmtDate(d)+" "+fmtTime(d)}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+var WD=["周日","周一","周二","周三","周四","周五","周六"];
+
+function toast(msg){
+  var t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(t._tm); t._tm=setTimeout(function(){t.classList.remove("show")},2200);
+}
+
+var KEY="mini_oa_v1";
+var db=null;
+
+function seed(){
+  var now=new Date();
+  var s={
+    role:"employee",
+    users:{
+      employee:{name:"张伟",dept:"研发部",title:"普通员工"},
+      manager:{name:"李娜",dept:"研发部",title:"部门经理 / 审批人"},
+      admin:{name:"王强",dept:"行政中心",title:"系统管理员"}
+    },
+    attendance:{},
+    workflows:[],
+    notices:[]
+  };
+  var roles=["employee","manager","admin"];
+  for(var i=7;i>=1;i--){
+    var d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i);
+    if(d.getDay()===0||d.getDay()===6) continue;
+    roles.forEach(function(r,ri){
+      var late=(i+ri)%4===0;
+      var inT=late?"09:"+pad(12+ri*3):"08:"+pad(50+ri);
+      s.attendance[r+"|"+fmtDate(d)]={in:inT,out:"18:"+pad(5+ri*2)};
+    });
+  }
+  s.workflows=[
+    {id:uid(),type:"leave",applicant:"employee",applicantName:"张伟",detail:"年假 2 天",
+     reason:"家中有事，申请年假两天处理私务",status:"pending",createdAt:fmtFull(new Date(now.getTime()-3600e3*5)),opinion:""},
+    {id:uid(),type:"expense",applicant:"employee",applicantName:"张伟",detail:"¥ 1,280.00",
+     reason:"客户拜访差旅：高铁票 + 住宿",status:"approved",createdAt:fmtFull(new Date(now.getTime()-86400e3*2)),opinion:"同意，注意发票归档"},
+    {id:uid(),type:"general",applicant:"manager",applicantName:"李娜",detail:"采购申请",
+     reason:"申请为团队采购 3 台显示器",status:"pending",createdAt:fmtFull(new Date(now.getTime()-3600e3*2)),opinion:""}
+  ];
+  s.notices=[
+    {id:uid(),title:"欢迎使用极简 OA 办公系统",content:"本系统包含考勤打卡、流程审批、通知公告三大模块。\n顶部可随时切换 [普通员工] / [部门经理] / [系统管理员] 三种身份体验完整流程。\n所有数据保存在浏览器 LocalStorage，无需服务器。",important:true,
+     author:"王强",createdAt:fmtFull(new Date(now.getTime()-86400e3*3))},
+    {id:uid(),title:"关于本周五全员例会的通知",content:"本周五 16:30 于大会议室召开全员例会，请各位提前安排好工作，准时参加。",important:false,
+     author:"王强",createdAt:fmtFull(new Date(now.getTime()-86400e3*1))}
+  ];
+  return s;
+}
+function load(){
+  try{
+    var raw=localStorage.getItem(KEY);
+    if(raw){ db=JSON.parse(raw); if(db&&db.users&&db.workflows) return; }
+  }catch(e){}
+  db=seed(); save();
+}
+function save(){
+  try{ localStorage.setItem(KEY,JSON.stringify(db)); }catch(e){}
+}
+
+var ROLE_LABEL={employee:"普通员工",manager:"部门经理 / 审批人",admin:"系统管理员"};
+function me(){ return db.role }
+function myInfo(){ return db.users[db.role] }
+
+function tick(){
+  var n=new Date();
+  $("#clockNow").textContent=fmtTime(n);
+  $("#clockDate").textContent=n.getFullYear()+"年"+(n.getMonth()+1)+"月"+n.getDate()+"日 "+WD[n.getDay()];
+}
+setInterval(tick,1000); tick();
+
+function setRole(r){
+  db.role=r; save();
+  $$(".role-btn").forEach(function(b){ b.classList.toggle("active",b.dataset.role===r) });
+  var u=myInfo();
+  $("#userName").textContent=u.name+" · "+u.title;
+  $("#userAvatar").textContent=u.name.charAt(0);
+  renderAll();
+  toast("已切换身份："+ROLE_LABEL[r]+"（"+u.name+"）");
+}
+$$(".role-btn").forEach(function(b){
+  b.addEventListener("click",function(){ setRole(b.dataset.role) });
+});
+
+function goPage(p){
+  $$(".nav-btn").forEach(function(b){ b.classList.toggle("active",b.dataset.page===p) });
+  $$(".page").forEach(function(s){ s.classList.toggle("show",s.id==="page-"+p) });
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+$$(".nav-btn").forEach(function(b){
+  b.addEventListener("click",function(){ goPage(b.dataset.page) });
+});
+
+function todayKey(){ return fmtDate(new Date()) }
+function getRec(role,key){ return db.attendance[role+"|"+key] }
+function setRec(role,key,val){ db.attendance[role+"|"+key]=val; save() }
+function lateCheck(hm){ return hm > "09:00" }
+
+function renderAttendance(){
+  var r=me(), k=todayKey(), rec=getRec(r,k), n=new Date();
+  $("#attMonth").textContent=n.getFullYear()+"年"+(n.getMonth()+1)+"月";
+
+  var bIn=$("#btnPunchIn"), bOut=$("#btnPunchOut");
+  if(rec&&rec.in){
+    bIn.disabled=true; bIn.innerHTML="已上班打卡<small>"+esc(rec.in)+(lateCheck(rec.in)?"（迟到）":"（正常）")+"</small>";
+  }else{
+    bIn.disabled=false;
+    bIn.innerHTML="上班打卡<small>未打卡</small>";
+  }
+  if(rec&&rec.out){
+    bOut.disabled=true; bOut.innerHTML="已下班打卡<small>"+esc(rec.out)+"</small>";
+  }else{
+    bOut.disabled=!(rec&&rec.in);
+    bOut.innerHTML="下班打卡<small>"+(rec&&rec.in?"待打卡":"需先上班打卡")+"</small>";
+  }
+
+  var st="";
+  if(rec&&rec.in){
+    var late=lateCheck(rec.in);
+    st='<span class="tag '+(late?"late":"ok")+'">'+(late?"迟到 "+esc(rec.in):"正常 "+esc(rec.in))+"</span>";
+    if(rec.out) st+=' <span class="tag ok">已下班 '+esc(rec.out)+"</span>";
+    else st+=' <span class="tag pend">工作中</span>';
+  }else{
+    var cur=fmtTime(n);
+    st='<span class="tag none">尚未打卡</span> 当前时间 '+esc(cur)+(cur>"09:00"?' · <span class="tag late">已过上班时间</span>':"");
+  }
+  $("#punchStatus").innerHTML=st;
+
+  var y=n.getFullYear(), m=n.getMonth();
+  var rows=[], workDays=0, lateDays=0, okDays=0;
+  var d=new Date(y,m,1);
+  while(d.getMonth()===m){
+    var key=fmtDate(d), rec2=getRec(r,key);
+    if(rec2&&rec2.in){
+      workDays++;
+      var isLate=lateCheck(rec2.in);
+      if(isLate) lateDays++; else okDays++;
+      var hours="—";
+      if(rec2.out){
+        var a=rec2.in.split(":"), b=rec2.out.split(":");
+        var h=(+b[0]*60+ +b[1])-(+a[0]*60+ +a[1]);
+        if(h>0) hours=(Math.floor(h/60)+"小时"+(h%60)+"分钟");
+      }
+      rows.unshift("<tr><td>"+key+"</td><td>"+WD[d.getDay()]+"</td><td>"+esc(rec2.in)+"</td><td>"+esc(rec2.out||"—")+
+        '</td><td><span class="tag '+(isLate?"late":"ok")+'">'+(isLate?"迟到":"正常")+"</span></td><td>"+hours+"</td></tr>");
+    }
+    d.setDate(d.getDate()+1);
+  }
+  $("#attTable").innerHTML=rows.join("");
+  $("#attEmpty").style.display=rows.length?"none":"block";
+  $("#attSummary").textContent="出勤 "+workDays+" 天 · 正常 "+okDays+" · 迟到 "+lateDays;
+}
+
+$("#btnPunchIn").addEventListener("click",function(){
+  var k=todayKey();
+  var old=getRec(me(),k);
+  if(old&&old.in){ toast("今日已打过上班卡"); return; }
+  var t=fmtTime(new Date());
+  setRec(me(),k,{in:t,out:""});
+  renderAll();
+  toast(lateCheck(t)?"上班打卡成功，但已迟到（"+t+"）✅":"上班打卡成功，状态正常（"+t+"）");
+});
+$("#btnPunchOut").addEventListener("click",function(){
+  var k=todayKey(), rec=getRec(me(),k);
+  if(!rec||!rec.in){ toast("请先打上班卡"); return; }
+  if(rec.out){ toast("今日已打过下班卡"); return; }
+  rec.out=fmtTime(new Date()); save();
+  renderAll();
+  toast("下班打卡成功（"+rec.out+"），辛苦了 🎉");
+});
+
+var WF_TYPE={leave:{label:"请假",cls:"leave"},expense:{label:"报销",cls:"expense"},general:{label:"通用审批",cls:""}};
+function wfDetail(w){
+  var t=WF_TYPE[w.type]||WF_TYPE.general;
+  return '<span class="type-pill '+t.cls+'">'+t.label+"</span>";
+}
+function statusTag(s){
+  if(s==="pending") return '<span class="tag pend">待审批</span>';
+  if(s==="approved") return '<span class="tag pass">已同意</span>';
+  return '<span class="tag rej">已拒绝</span>';
+}
+
+$("#wfType").addEventListener("change",function(){
+  var v=this.value;
+  $("#wfLeaveField").style.display=v==="leave"?"block":"none";
+  $("#wfAmountField").style.display=v==="expense"?"block":"none";
+});
+$("#wfType").dispatchEvent(new Event("change"));
+
+$("#btnSubmitWf").addEventListener("click",function(){
+  var type=$("#wfType").value, reason=$("#wfReason").value.trim();
+  if(!reason){ toast("请填写申请事由"); $("#wfReason").focus(); return; }
+  var detail="";
+  if(type==="leave"){
+    detail=$("#wfLeaveDetail").value.trim();
+    if(!detail){ toast("请填写请假类型 / 天数"); $("#wfLeaveDetail").focus(); return; }
+  }else if(type==="expense"){
+    var amt=parseFloat($("#wfAmount").value);
+    if(!(amt>0)){ toast("请填写有效的报销金额"); $("#wfAmount").focus(); return; }
+    detail="¥ "+amt.toLocaleString("zh-CN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  }else{
+    detail=reason.slice(0,18);
+  }
+  var u=myInfo();
+  db.workflows.unshift({
+    id:uid(),type:type,applicant:me(),applicantName:u.name,detail:detail,
+    reason:reason,status:"pending",createdAt:fmtFull(new Date()),opinion:""
+  });
+  save();
+  $("#wfReason").value=""; $("#wfLeaveDetail").value=""; $("#wfAmount").value="";
+  renderAll();
+  toast("申请已提交，等待经理审批 ✅");
+});
+
+function renderWorkflow(){
+  var r=me();
+  $("#wfRoleHint").textContent="当前身份："+ROLE_LABEL[r];
+
+  var canApprove=(r==="manager"||r==="admin");
+  if(r==="employee"){
+    $("#cardPending").style.display="none";
+  }else{
+    $("#cardPending").style.display="block";
+    var pend=db.workflows.filter(function(w){return w.status==="pending"});
+    $("#pendingCount").textContent=pend.length+" 条";
+    var html=pend.map(function(w){
+      var ops="";
+      if(w.applicant===r){
+        ops='<span class="tag none">本人提交，无需自审</span>';
+      }else if(canApprove){
+        ops='<button class="btn btn-sm btn-pass" data-act="approve" data-id="'+w.id+'">✅ 同意</button>'+
+            '<button class="btn btn-sm btn-rej" data-act="reject" data-id="'+w.id+'">❌ 拒绝</button>';
+      }
+      return '<div class="item"><div class="item-main">'+
+        '<div class="item-title">'+wfDetail(w)+esc(w.detail||w.reason)+'</div>'+
+        '<div class="item-meta">申请人：'+esc(w.applicantName)+" · "+esc(w.createdAt)+"</div>"+
+        '<div class="item-desc">事由：'+esc(w.reason)+"</div></div>"+
+        '<div class="item-ops">'+statusTag(w.status)+ops+"</div></div>";
+    }).join("");
+    $("#pendingList").innerHTML=html;
+    $("#pendingEmpty").style.display=pend.length?"none":"block";
+  }
+
+  var mine=db.workflows.filter(function(w){return w.applicant===r});
+  var mhtml=mine.map(function(w){
+    var op=w.opinion?'<div class="item-desc">审批意见：'+esc(w.opinion)+"</div>":"";
+    return '<div class="item"><div class="item-main">'+
+      '<div class="item-title">'+wfDetail(w)+esc(w.detail||w.reason)+'</div>'+
+      '<div class="item-meta">提交于 '+esc(w.createdAt)+"</div>"+
+      '<div class="item-desc">事由：'+esc(w.reason)+"</div>"+op+"</div>"+
+      '<div class="item-ops">'+statusTag(w.status)+"</div></div>";
+  }).join("");
+  $("#myWfList").innerHTML=mhtml;
+  $("#myWfEmpty").style.display=mine.length?"none":"block";
+
+  if(r==="admin"){
+    $("#cardAllWf").style.display="block";
+    var rows=db.workflows.map(function(w){
+      var u=db.users[w.applicant];
+      return "<tr><td>"+esc(w.applicantName)+"<br><span style='color:var(--txt3);font-size:12px'>"+esc(u?u.dept:"")+"</span></td>"+
+        "<td>"+WF_TYPE[w.type].label+"</td><td>"+esc(w.detail)+"<br><span style='color:var(--txt3);font-size:12.5px'>"+esc(w.reason)+"</span></td>"+
+        "<td style='white-space:nowrap'>"+esc(w.createdAt)+"</td><td>"+statusTag(w.status)+"</td>"+
+        "<td>"+esc(w.opinion||"—")+"</td></tr>";
+    }).join("");
+    $("#allWfTable").innerHTML=rows;
+    $("#allWfEmpty").style.display=db.workflows.length?"none":"block";
+  }else{
+    $("#cardAllWf").style.display="none";
+  }
+
+  var badge=$("#badgeWorkflow");
+  if(r==="manager"||r==="admin"){
+    var cnt=db.workflows.filter(function(w){return w.status==="pending"&&w.applicant!==r}).length;
+    if(cnt>0){ badge.style.display="flex"; badge.textContent=cnt; } else badge.style.display="none";
+  }else badge.style.display="none";
+}
+
+var rejectId=null;
+document.addEventListener("click",function(e){
+  var b=e.target.closest("[data-act]");
+  if(!b) return;
+  var id=b.dataset.id, act=b.dataset.act;
+  var w=db.workflows.filter(function(x){return x.id===id})[0];
+  if(!w) return;
+  if(act==="approve"){
+    w.status="approved";
+    w.opinion="同意（"+myInfo().name+" 于 "+fmtFull(new Date())+"）";
+    save(); renderAll(); toast("已同意该申请 ✅");
+  }else if(act==="reject"){
+    rejectId=id; $("#rejectReason").value="";
+    $("#rejectMask").classList.add("show");
+    setTimeout(function(){$("#rejectReason").focus()},80);
+  }
+});
+$("#btnRejectCancel").addEventListener("click",function(){ $("#rejectMask").classList.remove("show"); rejectId=null; });
+$("#rejectMask").addEventListener("click",function(e){ if(e.target===this){this.classList.remove("show");rejectId=null;} });
+$("#btnRejectOk").addEventListener("click",function(){
+  var rs=$("#rejectReason").value.trim();
+  if(!rs){ toast("请填写拒绝理由"); return; }
+  var w=db.workflows.filter(function(x){return x.id===rejectId})[0];
+  if(w){ w.status="rejected"; w.opinion="拒绝："+rs+"（"+myInfo().name+"）"; save(); }
+  $("#rejectMask").classList.remove("show"); rejectId=null;
+  renderAll(); toast("已拒绝该申请 ❌");
+});
+
+function renderNotice(){
+  var isAdmin=(db.role==="admin");
+  $("#cardPublish").style.display=isAdmin?"block":"none";
+  $("#ntCount").textContent=db.notices.length+" 条";
+  if(!db.notices.length){ $("#ntList").innerHTML=""; $("#ntEmpty").style.display="block"; return; }
+  $("#ntEmpty").style.display="none";
+  $("#ntList").innerHTML=db.notices.map(function(n){
+    var del=isAdmin?'<button class="btn btn-sm btn-ghost" data-del-notice="'+n.id+'">删除</button>':"";
+    return '<div class="item'+(n.important?" important":"")+'"><div class="item-main">'+
+      '<div class="item-title">'+(n.important?"⭐ ":"")+esc(n.title)+"</div>"+
+      '<div class="item-meta">发布人：'+esc(n.author)+" · "+esc(n.createdAt)+"</div>"+
+      '<div class="notice-body">'+esc(n.content)+"</div></div>"+
+      '<div class="item-ops">'+(n.important?'<span class="tag rej">重要</span>':"")+del+"</div></div>";
+  }).join("");
+}
+$("#btnPublish").addEventListener("click",function(){
+  var t=$("#ntTitle").value.trim(), c=$("#ntContent").value.trim();
+  if(!t){ toast("请填写公告标题"); $("#ntTitle").focus(); return; }
+  if(!c){ toast("请填写公告内容"); $("#ntContent").focus(); return; }
+  db.notices.unshift({
+    id:uid(),title:t,content:c,important:$("#ntImportant").value==="1",
+    author:myInfo().name,createdAt:fmtFull(new Date())
+  });
+  save();
+  $("#ntTitle").value=""; $("#ntContent").value=""; $("#ntImportant").value="0";
+  renderAll(); toast("公告发布成功 📢");
+});
+document.addEventListener("click",function(e){
+  var b=e.target.closest("[data-del-notice]");
+  if(!b) return;
+  if(!confirm("确定删除这条公告吗？")) return;
+  db.notices=db.notices.filter(function(n){return n.id!==b.dataset.delNotice});
+  save(); renderAll(); toast("公告已删除");
+});
+
+function renderHome(){
+  var r=me(), u=myInfo(), n=new Date();
+  $("#homeDate").textContent=n.getFullYear()+"-"+pad(n.getMonth()+1)+"-"+pad(n.getDate())+" "+WD[n.getDay()];
+  var tips={
+    employee:"👋 你好，<b>"+esc(u.name)+"</b>（"+esc(u.dept)+"）。你可以打卡、提交请假/报销申请，并查看审批进度。",
+    manager:"👩‍💼 你好，<b>"+esc(u.name)+"</b>。进入「流程审批」页即可处理待办申请（同意 / 拒绝）。",
+    admin:"🛠 你好，<b>"+esc(u.name)+"</b>。你是系统管理员：可发布/删除公司公告，并查看全部申请数据。"
+  };
+  $("#homeHint").innerHTML=tips[r];
+
+  var k=todayKey(), rec=getRec(r,k);
+  var monthWorked=0;
+  var y=n.getFullYear(), m=n.getMonth();
+  var d=new Date(y,m,1);
+  while(d.getMonth()===m){
+    var rr=getRec(r,fmtDate(d)); if(rr&&rr.in) monthWorked++;
+    d.setDate(d.getDate()+1);
+  }
+  var pending=db.workflows.filter(function(w){return w.status==="pending"}).length;
+  var mine=db.workflows.filter(function(w){return w.applicant===r}).length;
+  var stats="";
+  stats+='<div class="stat"><div class="num">'+(rec&&rec.in?esc(rec.in):"—")+'</div><div class="lbl">今日上班打卡</div></div>';
+  stats+='<div class="stat g"><div class="num">'+monthWorked+'</div><div class="lbl">本月出勤（天）</div></div>';
+  stats+='<div class="stat o"><div class="num">'+(r==="employee"?mine:pending)+'</div><div class="lbl">'+(r==="employee"?"我的申请总数":"待审批事项")+'</div></div>';
+  stats+='<div class="stat r"><div class="num">'+db.notices.length+'</div><div class="lbl">公司公告数</div></div>';
+  $("#homeStats").innerHTML=stats;
+
+  var lastN=db.notices.slice(0,3);
+  var recent='<div style="margin-bottom:6px;font-size:14px;color:var(--txt2);font-weight:600">📢 最新公告</div>';
+  recent+='<div class="list">'+(lastN.length?lastN.map(function(nn){
+    return '<div class="item'+(nn.important?" important":"")+'"><div class="item-main"><div class="item-title">'+(nn.important?"⭐ ":"")+esc(nn.title)+
+      '</div><div class="item-meta">'+esc(nn.createdAt)+" · "+esc(nn.author)+"</div></div></div>";
+  }).join(""):'<div class="empty">暂无公告</div>')+"</div>";
+  $("#homeRecent").innerHTML=recent;
+}
+
+function renderAll(){
+  renderHome(); renderAttendance(); renderWorkflow(); renderNotice();
+}
+
+load();
+(function initRole(){
+  var r=db.role||"employee"; db.role=r;
+  $$(".role-btn").forEach(function(b){ b.classList.toggle("active",b.dataset.role===r) });
+  var u=myInfo();
+  $("#userName").textContent=u.name+" · "+u.title;
+  $("#userAvatar").textContent=u.name.charAt(0);
+})();
+renderAll();
+
+})();
+</script>
+</body>
+</html>
