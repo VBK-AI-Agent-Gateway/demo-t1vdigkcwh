@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>极简 OA 办公系统</title>
+<style>
+:root{
+  --blue:#2563eb; --blue-d:#1d4ed8; --blue-l:#eff6ff;
+  --bg:#f1f5fb; --card:#ffffff; --line:#e6ecf5;
+  --txt:#1e293b; --sub:#64748b; --ok:#16a34a; --ok-bg:#ecfdf5;
+  --warn:#d97706; --warn-bg:#fffbeb; --bad:#dc2626; --bad-bg:#fef2f2;
+  --shadow:0 1px 3px rgba(15,40,90,.06),0 6px 24px rgba(15,40,90,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+button{font-family:inherit;cursor:pointer;border:none}
+input,select,textarea{font-family:inherit;font-size:14px;color:var(--txt)}
+
+/* ===== 顶部状态栏 ===== */
+.topbar{position:sticky;top:0;z-index:50;background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 60%,#3b82f6 100%);color:#fff;box-shadow:0 2px 12px rgba(37,99,235,.25)}
+.topbar-inner{max-width:1080px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px;letter-spacing:.5px}
+.logo-badge{width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:17px}
+.now-date{font-size:12px;opacity:.85;font-weight:400}
+.role-group{margin-left:auto;display:flex;background:rgba(255,255,255,.14);border-radius:10px;padding:4px;gap:4px;flex-wrap:wrap}
+.role-btn{padding:7px 14px;border-radius:8px;background:transparent;color:rgba(255,255,255,.85);font-size:13px;font-weight:600;transition:.18s;white-space:nowrap}
+.role-btn:hover{background:rgba(255,255,255,.14);color:#fff}
+.role-btn.active{background:#fff;color:var(--blue-d);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.14);padding:6px 13px;border-radius:20px;font-size:13px;font-weight:600}
+.avatar{width:24px;height:24px;border-radius:50%;background:#fbbf24;color:#7c2d12;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+
+/* ===== 布局 ===== */
+.wrap{max-width:1080px;margin:0 auto;padding:18px}
+.tabs{display:flex;gap:8px;margin-bottom:18px;background:var(--card);padding:6px;border-radius:14px;box-shadow:var(--shadow);overflow-x:auto}
+.tab{flex:1;min-width:110px;padding:11px 10px;border-radius:10px;background:transparent;color:var(--sub);font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:7px;transition:.18s;white-space:nowrap}
+.tab:hover{background:var(--blue-l);color:var(--blue)}
+.tab.active{background:linear-gradient(135deg,var(--blue),#3b82f6);color:#fff;box-shadow:0 4px 12px rgba(37,99,235,.3)}
+.tab .dot{width:7px;height:7px;border-radius:50%;background:#ef4444;animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.page{display:none;animation:fade .25s ease}
+.page.show{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px;border:1px solid var(--line)}
+.card h3{font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h3 .ico{width:26px;height:26px;border-radius:8px;background:var(--blue-l);display:flex;align-items:center;justify-content:center;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+
+/* 统计 */
+.stat{background:var(--card);border-radius:16px;padding:18px;box-shadow:var(--shadow);border:1px solid var(--line);display:flex;gap:14px;align-items:center}
+.stat .s-ico{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.stat .s-num{font-size:24px;font-weight:800;line-height:1.1}
+.stat .s-lab{font-size:12.5px;color:var(--sub);margin-top:3px}
+
+/* 打卡 */
+.punch-zone{text-align:center;padding:8px 0 4px}
+.clock-big{font-size:44px;font-weight:800;letter-spacing:2px;font-variant-numeric:tabular-nums;background:linear-gradient(135deg,#1e3a8a,#2563eb);-webkit-background-clip:text;background-clip:text;color:transparent}
+.clock-date{color:var(--sub);font-size:13.5px;margin:4px 0 18px}
+.punch-btn{width:170px;height:170px;border-radius:50%;font-size:19px;font-weight:700;color:#fff;background:linear-gradient(145deg,#3b82f6,#2563eb);box-shadow:0 12px 30px rgba(37,99,235,.4),inset 0 2px 0 rgba(255,255,255,.3);transition:.15s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin:0 auto}
+.punch-btn small{font-size:12px;font-weight:400;opacity:.85}
+.punch-btn:hover{transform:translateY(-3px);box-shadow:0 16px 36px rgba(37,99,235,.5)}
+.punch-btn:active{transform:scale(.96)}
+.punch-btn.off{background:linear-gradient(145deg,#94a3b8,#64748b);box-shadow:0 8px 20px rgba(100,116,139,.35);cursor:not-allowed}
+.punch-btn.off:hover{transform:none}
+.today-status{display:flex;justify-content:center;gap:10px;margin-top:18px;flex-wrap:wrap}
+.pill{padding:7px 15px;border-radius:20px;font-size:13px;font-weight:600;display:inline-flex;gap:6px;align-items:center}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.mute{background:#f1f5f9;color:var(--sub)}
+.pill.blue{background:var(--blue-l);color:var(--blue)}
+
+/* 表格 */
+.tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+th{background:#f8fafc;color:var(--sub);font-weight:600;text-align:left;padding:11px 13px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 13px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#f9fbff}
+.empty{text-align:center;color:var(--sub);padding:34px 10px;font-size:13.5px}
+.empty .e-ico{font-size:34px;display:block;margin-bottom:8px;opacity:.6}
+
+/* 表单 */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#334155}
+.field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#f8fafc;outline:none;transition:.15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.field textarea{resize:vertical;min-height:76px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 20px;border-radius:10px;font-size:14px;font-weight:600;transition:.15s}
+.btn.primary{background:linear-gradient(135deg,var(--blue),#3b82f6);color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.3)}
+.btn.primary:hover{transform:translateY(-1px);box-shadow:0 7px 18px rgba(37,99,235,.4)}
+.btn.ghost{background:#f1f5f9;color:var(--sub)}
+.btn.ghost:hover{background:#e2e8f0;color:var(--txt)}
+.btn.approve{background:var(--ok-bg);color:var(--ok);padding:7px 15px;font-size:13px;border:1px solid #bbf7d0}
+.btn.approve:hover{background:#d1fae5}
+.btn.reject{background:var(--bad-bg);color:var(--bad);padding:7px 15px;font-size:13px;border:1px solid #fecaca}
+.btn.reject:hover{background:#fee2e2}
+.btn.sm{padding:7px 13px;font-size:13px}
+
+/* 申请卡片 */
+.wf-item{border:1px solid var(--line);border-radius:13px;padding:14px;margin-bottom:11px;background:#fff;transition:.15s}
+.wf-item:hover{border-color:#c7d8f5;box-shadow:0 4px 14px rgba(37,99,235,.08)}
+.wf-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:7px}
+.wf-title{font-weight:700;font-size:14.5px}
+.wf-meta{font-size:12.5px;color:var(--sub);line-height:1.7}
+.wf-ops{display:flex;gap:9px;margin-top:11px;flex-wrap:wrap}
+.tag{font-size:11.5px;padding:3px 10px;border-radius:20px;font-weight:600}
+.tag.leave{background:#ede9fe;color:#7c3aed}
+.tag.expense{background:#fef3c7;color:#b45309}
+.tag.other{background:#e0f2fe;color:#0369a1}
+.tag.pending{background:var(--warn-bg);color:var(--warn)}
+.tag.approved{background:var(--ok-bg);color:var(--ok)}
+.tag.rejected{background:var(--bad-bg);color:var(--bad)}
+
+/* 公告 */
+.notice{border-left:4px solid var(--blue);background:linear-gradient(90deg,#f5f9ff,#fff);border-radius:0 13px 13px 0;padding:15px 17px;margin-bottom:12px;box-shadow:0 1px 4px rgba(15,40,90,.05)}
+.notice.pin{border-left-color:#f59e0b;background:linear-gradient(90deg,#fffbeb,#fff)}
+.notice h4{font-size:15px;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.notice p{font-size:13.5px;color:#475569;line-height:1.75;white-space:pre-wrap;word-break:break-all}
+.notice .n-meta{font-size:12px;color:#94a3b8;margin-top:9px;display:flex;gap:14px;flex-wrap:wrap}
+.del-btn{margin-left:auto;background:transparent;color:#f87171;font-size:12.5px;font-weight:600;padding:3px 8px;border-radius:6px}
+.del-btn:hover{background:var(--bad-bg)}
+
+/* toast */
+#toast{position:fixed;left:50%;top:74px;transform:translateX(-50%) translateY(-20px);background:#0f172a;color:#fff;padding:11px 22px;border-radius:11px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.3s;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,.28);max-width:88vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{background:linear-gradient(135deg,#059669,#10b981)}
+#toast.err{background:linear-gradient(135deg,#dc2626,#ef4444)}
+
+/* modal */
+.mask{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:80;padding:18px}
+.mask.show{display:flex}
+.modal{background:#fff;border-radius:18px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,.3);animation:pop .22s ease}
+@keyframes pop{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:none}}
+.modal h3{font-size:16px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.modal h3 .m-close{margin-left:auto;background:#f1f5f9;width:28px;height:28px;border-radius:8px;font-size:15px;color:var(--sub);display:flex;align-items:center;justify-content:center}
+.modal h3 .m-close:hover{background:#e2e8f0}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+
+@media(max-width:680px){
+  .topbar-inner{padding:11px 13px;gap:9px}
+  .logo span.txt{display:none}
+  .now-date{display:none}
+  .role-group{margin-left:0;width:100%;order:3}
+  .role-btn{flex:1;padding:8px 6px;font-size:12.5px;text-align:center}
+  .user-chip{margin-left:auto}
+  .wrap{padding:13px}
+  .clock-big{font-size:36px}
+  .punch-btn{width:150px;height:150px;font-size:17px}
+  .row2{grid-template-columns:1fr}
+  .tab{min-width:0;flex:1;padding:10px 4px;font-size:12.5px;gap:4px}
+  .tab .t-ico{font-size:15px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="logo"><div class="logo-badge">🏢</div><span class="txt">极简 OA</span></div>
+    <div class="now-date" id="topDate"></div>
+    <div class="user-chip"><div class="avatar" id="chipAvatar">员</div><span id="chipName">普通员工</span></div>
+    <div class="role-group">
+      <button class="role-btn active" data-role="employee" onclick="setRole('employee')">🧑‍💼 普通员工</button>
+      <button class="role-btn" data-role="manager" onclick="setRole('manager')">📋 部门经理</button>
+      <button class="role-btn" data-role="admin" onclick="setRole('admin')">🛡️ 系统管理员</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab active" data-page="home" onclick="go('home')"><span class="t-ico">🏠</span>工作台</button>
+    <button class="tab" data-page="attendance" onclick="go('attendance')"><span class="t-ico">⏰</span>考勤打卡</button>
+    <button class="tab" data-page="workflow" onclick="go('workflow')"><span class="t-ico">📝</span>流程审批<span class="dot" id="tabDot" style="display:none"></span></button>
+    <button class="tab" data-page="notice" onclick="go('notice')"><span class="t-ico">📢</span>通知公告</button>
+  </div>
+
+  <!-- ============ 工作台 ============ -->
+  <section class="page show" id="page-home">
+    <div class="grid" id="statGrid"></div>
+    <div class="card" style="margin-top:16px">
+      <h3><span class="ico">⚡</span>快捷操作</h3>
+      <div style="display:flex;gap:11px;flex-wrap:wrap">
+        <button class="btn primary" onclick="go('attendance')">⏰ 去打卡</button>
+        <button class="btn ghost" onclick="go('workflow');openSubmit()">✍️ 提交申请</button>
+        <button class="btn ghost" onclick="go('workflow')" id="qsApprove" style="display:none">📋 去审批</button>
+        <button class="btn ghost" onclick="go('notice')" id="qsNotice" style="display:none">📢 发布公告</button>
+        <button class="btn ghost" onclick="resetData()">♻️ 重置演示数据</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span class="ico">📌</span>最新动态</h3>
+      <div id="homeFeed"></div>
+    </div>
+  </section>
+
+  <!-- ============ 考勤打卡 ============ -->
+  <section class="page" id="page-attendance">
+    <div class="card">
+      <div class="punch-zone">
+        <div class="clock-big" id="liveClock">--:--:--</div>
+        <div class="clock-date" id="liveDate"></div>
+        <button class="punch-btn" id="punchBtn" onclick="punch()">
+          <span id="punchIcon">👋</span>
+          <span id="punchText">上班打卡</span>
+          <small id="punchSub">点击记录到岗时间</small>
+        </button>
+        <div class="today-status" id="todayStatus"></div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card" style="grid-column:1/-1">
+        <h3><span class="ico">🗓️</span><span id="recTitle">本月打卡记录</span></h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>日期</th><th>星期</th><th>上班打卡</th><th>下班打卡</th><th>状态</th></tr></thead>
+            <tbody id="recBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 流程审批 ============ -->
+  <section class="page" id="page-workflow">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="btn primary" onclick="openSubmit()">＋ 提交新申请</button>
+        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap" id="wfFilters"></div>
+      </div>
+    </div>
+    <div class="card" id="approveCard" style="display:none">
+      <h3><span class="ico">✅</span><span id="approveTitle">待我审批</span></h3>
+      <div id="approveList"></div>
+    </div>
+    <div class="card">
+      <h3><span class="ico">📄</span><span id="mineTitle">我的申请</span></h3>
+      <div id="mineList"></div>
+    </div>
+  </section>
+
+  <!-- ============ 通知公告 ============ -->
+  <section class="page" id="page-notice">
+    <div class="card" id="noticeFormCard" style="display:none">
+      <h3><span class="ico">✍️</span>发布公告</h3>
+      <div class="field"><label>公告标题</label><input id="nTitle" placeholder="例：关于 2024 年度团建活动的通知" maxlength="60"></div>
+      <div class="field"><label>公告内容</label><textarea id="nBody" placeholder="请输入公告正文…" rows="4" maxlength="2000"></textarea></div>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13.5px;color:#334155;cursor:pointer">
+        <input type="checkbox" id="nPin" style="width:auto;accent-color:#f59e0b"> 🔥 设为置顶公告
+      </label>
+      <div style="margin-top:14px"><button class="btn primary" onclick="publishNotice()">📢 发布公告</button></div>
+    </div>
+    <div id="noticeList"></div>
+  </section>
+</div>
+
+<!-- 提交申请弹窗 -->
+<div class="mask" id="submitMask">
+  <div class="modal">
+    <h3>✍️ 提交新申请<button class="m-close" onclick="closeSubmit()">✕</button></h3>
+    <div class="field">
+      <label>申请类型</label>
+      <select id="wfType" onchange="wfTypeChange()">
+        <option value="leave">🏖️ 请假申请</option>
+        <option value="expense">💰 报销申请</option>
+        <option value="other">📄 通用审批</option>
+      </select>
+    </div>
+    <div class="field" id="fLeave"><label>请假类型</label>
+      <select id="wfLeaveType">
+        <option>年假</option><option>事假</option><option>病假</option><option>调休</option><option>婚假</option><option>其他</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="field" id="fStart"><label>开始日期</label><input type="date" id="wfStart"></div>
+      <div class="field" id="fEnd"><label>结束日期</label><input type="date" id="wfEnd"></div>
+    </div>
+    <div class="field" id="fAmount" style="display:none"><label>报销金额（元）</label><input type="number" id="wfAmount" placeholder="0.00" min="0" step="0.01"></div>
+    <div class="field" id="fCategory" style="display:none"><label>报销类别</label>
+      <select id="wfCat"><option>差旅费</option><option>办公用品</option><option>业务招待</option><option>交通费</option><option>培训费</option><option>其他</option></select>
+    </div>
+    <div class="field"><label id="fReasonLabel">请假事由</label><textarea id="wfReason" placeholder="请填写详细说明…" maxlength="300"></textarea></div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeSubmit()">取消</button>
+      <button class="btn primary" onclick="submitWf()">提交申请</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ================= 基础工具 ================= */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const fmtDate=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const fmtTime=d=>pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+const WD=['周日','周一','周二','周三','周四','周五','周六'];
+const TYPE={leave:{n:'请假申请',c:'leave',i:'🏖️'},expense:{n:'报销申请',c:'expense',i:'💰'},other:{n:'通用审批',c:'other',i:'📄'}};
+const ST={pending:{n:'待审批',c:'pending'},approved:{n:'已同意',c:'approved'},rejected:{n:'已拒绝',c:'rejected'}};
+const KEY='mini_oa_v1';
+const WORK_START=9*60;      // 09:00 前为正常
+const WORK_END=18*60;       // 18:00 后算正常下班
+
+function toast(msg,type){const t=$('toast');t.textContent=msg;t.className='show'+(type?' '+type:'');clearTimeout(t._h);t._h=setTimeout(()=>t.className='',2200);}
+
+/* ================= 状态与存储 ================= */
+let S=null;
+function defaultData(){
+  const y=new Date().getFullYear(),m=new Date().getMonth();
+  const at=(day,h,mi)=>{const d=new Date(y,m,day,h,mi);return fmtDate(d)+' '+fmtTime(d);};
+  const now=fmtDate(new Date());
+  return {
+    role:'employee',page:'home',seenApprove:0,seq:1006,
+    attendance:{
+      '张伟':{[now]:{in:'08:52:10',out:''}},
+      '李芳':{[at(3,8,58).slice(0,10)]:{in:'08:58:03',out:'18:12:40'},[at(6,9,17).slice(0,10)]:{in:'09:17:22',out:'18:05:11'},[at(11,8,49).slice(0,10)]:{in:'08:49:36',out:'18:02:07'}},
+      '王强':{}
+    },
+    workflow:[
+      {id:1001,type:'leave',title:'请假申请 · 年假 3 天',detail:'年假 · 2024-05-20 ~ 2024-05-22',reason:'家中有事，需返乡处理，工作已与同事交接。',applicant:'张伟',dept:'研发部',time:at(12,10,24),status:'pending'},
+      {id:1002,type:'expense',title:'报销申请 · ¥1,280.00',detail:'差旅费 · 金额 ¥1280.00',reason:'上海客户现场出差往返高铁票及住宿费。',applicant:'李芳',dept:'市场部',time:at(13,14,6),status:'pending'},
+      {id:1003,type:'other',title:'通用审批 · 采购 2 台显示器',detail:'办公用品采购审批',reason:'为新入职 2 名同事申请 27 寸显示器各一台。',applicant:'王强',dept:'行政部',time:at(14,9,41),status:'pending'},
+      {id:1004,type:'leave',title:'请假申请 · 病假 1 天',detail:'病假 · 2024-05-10',reason:'感冒发烧，需就医休息一天。',applicant:'张伟',dept:'研发部',time:at(10,8,15),status:'approved',opinion:'注意休息，已同意。'},
+      {id:1005,type:'expense',title:'报销申请 · ¥356.50',detail:'交通费 · 金额 ¥356.50',reason:'市内客户拜访打车费用。',applicant:'李芳',dept:'市场部',time:at(8,17,30),status:'rejected',opinion:'请按标准走公共交通报销。'}
+    ],
+    notices:[
+      {id:1,title:'【置顶】关于启用极简 OA 系统的通知',body:'各位同事：\n\n即日起公司全面启用本 OA 系统，包含考勤打卡、流程审批、通知公告三大模块。请全体员工每日上下班准时打卡，各类申请一律线上提交，感谢配合！',author:'系统管理员',time:at(1,9,0),pin:true},
+      {id:2,title:'2024 年 5 月全员大会安排',body:'会议时间：本周五 16:00\n会议地点：3 楼大会议室\n\n请各部门提前提交季度总结，准时参会。',author:'系统管理员',time:at(6,11,20),pin:false},
+      {id:3,title:'办公区网络维护公告',body:'本周六 22:00 - 次日 02:00 进行核心交换机升级，期间内网与 VPN 暂停服务，请提前保存工作内容。',author:'系统管理员',time:at(9,15,45),pin:false}
+    ]
+  };
+}
+function load(){try{const r=localStorage.getItem(KEY);S=r?JSON.parse(r):defaultData();}catch(e){S=defaultData();}
+  if(!S||!S.workflow||!S.notices||!S.attendance)S=defaultData();}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function resetData(){if(confirm('确定重置为初始演示数据吗？当前所有记录将被清空。')){S=defaultData();save();renderAll();toast('已重置演示数据','ok');}}
+
+/* 角色定义 */
+const USERS={employee:{name:'张伟',dept:'研发部',label:'普通员工',av:'员'},
+             manager:{name:'赵敏',dept:'管理层',label:'部门经理',av:'经'},
+             admin:{name:'Admin',dept:'信息中心',label:'系统管理员',av:'管'}};
+const me=()=>USERS[S.role];
+const isMgr=()=>S.role==='manager';
+const isAdmin=()=>S.role==='admin';
+
+/* ================= 导航 ================= */
+function go(p){S.page=p;save();
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.page===p));
+  document.querySelectorAll('.page').forEach(s=>s.classList.toggle('show',s.id==='page-'+p));
+  if(p==='workflow')markSeen();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function setRole(r){
+  S.role=r;save();
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.toggle('active',b.dataset.role===r));
+  const u=me();$('chipName').textContent=u.label+' · '+u.name;$('chipAvatar').textContent=u.av;
+  renderAll();if(S.page==='workflow')markSeen();
+  toast('已切换身份：'+u.label,'ok');
+}
+
+/* ================= 打卡 ================= */
+function todayRec(){const n=fmtDate(new Date());const m=S.attendance[me().name]||(S.attendance[me().name]={});return m[n]||(m[n]={in:'',out:''});}
+function hm2min(t){if(!t)return null;const a=t.split(':');return (+a[0])*60+(+a[1]);}
+function punch(){
+  const r=todayRec(),now=new Date(),t=fmtTime(now);
+  if(!r.in){r.in=t;save();const late=hm2min(t)>WORK_START;
+    toast(late?'上班打卡成功（迟到） '+t:'上班打卡成功（正常） '+t,late?'err':'ok');
+  }else if(!r.out){r.out=t;save();const early=hm2min(t)<WORK_END;
+    toast(early?'下班打卡成功（早退） '+t:'下班打卡成功 '+t,early?'err':'ok');
+  }else{toast('今日已完成上下班打卡','err');return;}
+  renderAttendance();renderHome();
+}
+function renderAttendance(){
+  const btn=$('punchBtn'),r=todayRec();
+  if(!r.in){btn.className='punch-btn';$('punchIcon').textContent='👋';$('punchText').textContent='上班打卡';$('punchSub').textContent='点击记录到岗时间';}
+  else if(!r.out){btn.className='punch-btn';$('punchIcon').textContent='🏠';$('punchText').textContent='下班打卡';$('punchSub').textContent='上班 '+r.in+' 已记录';}
+  else{btn.className='punch-btn off';$('punchIcon').textContent='✅';$('punchText').textContent='今日已完成';$('punchSub').textContent=r.in+' → '+r.out;}
+
+  const late=r.in&&hm2min(r.in)>WORK_START, early=r.out&&hm2min(r.out)<WORK_END;
+  let h='';
+  h+= r.in? (late?'<span class="pill warn">🕐 上班 · 迟到 '+r.in+'</span>':'<span class="pill ok">✅ 上班 · 正常 '+r.in+'</span>') : '<span class="pill mute">⏳ 上班 · 未打卡</span>';
+  h+= r.out? (early?'<span class="pill warn">🕔 下班 · 早退 '+r.out+'</span>':'<span class="pill ok">🏠 下班 · 正常 '+r.out+'</span>') : '<span class="pill mute">⏳ 下班 · 未打卡</span>';
+  h+='<span class="pill blue">👤 '+esc(me().name)+'（'+esc(me().label)+'）</span>';
+  $('todayStatus').innerHTML=h;
+
+  // 当月记录（倒序）
+  const d=new Date(),y=d.getFullYear(),m=d.getMonth(),md=pad(m+1);
+  const rec=S.attendance[me().name]||{};
+  let rows='',cnt=0,lateCnt=0;
+  for(let day=new Date(y,m+1,0).getDate();day>=1;day--){
+    const ds=y+'-'+md+'-'+pad(day),v=rec[ds];
+    if(!v||(!v.in&&!v.out))continue;
+    cnt++;
+    const l=v.in&&hm2min(v.in)>WORK_START;if(l)lateCnt++;
+    const st=!v.in?'<span class="tag pending">缺卡</span>':l?'<span class="tag pending">迟到</span>':'<span class="tag approved">正常</span>';
+    rows+='<tr><td>'+ds+'</td><td>'+WD[new Date(y,m,day).getDay()]+'</td><td>'+(v.in||'—')+'</td><td>'+(v.out||'—')+'</td><td>'+st+'</td></tr>';
+  }
+  $('recBody').innerHTML=rows||'<tr><td colspan="5"><div class="empty"><span class="e-ico">🗓️</span>本月暂无打卡记录，快去打卡吧</div></td></tr>';
+  $('recTitle').textContent='本月打卡记录（'+esc(me().name)+' · 共 '+cnt+' 天，迟到 '+lateCnt+' 次）';
+}
+
+/* ================= 流程审批 ================= */
+let wfFilter='all';
+function pendingList(){return S.workflow.filter(w=>w.status==='pending');}
+function markSeen(){S.seenApprove=pendingList().length;save();updDot();}
+function updDot(){$('tabDot').style.display=pendingList().length>S.seenApprove?'block':'none';}
+
+function openSubmit(){$('submitMask').classList.add('show');wfTypeChange();
+  if(!$('wfStart').value){const t=new Date();$('wfStart').value=fmtDate(t);$('wfEnd').value=fmtDate(t);}}
+function closeSubmit(){$('submitMask').classList.remove('show');}
+function wfTypeChange(){
+  const v=$('wfType').value;
+  $('fLeave').style.display=v==='leave'?'':'none';
+  $('fStart').style.display=v==='leave'?'':'none';
+  $('fEnd').style.display=v==='leave'?'':'none';
+  $('fAmount').style.display=v==='expense'?'':'none';
+  $('fCategory').style.display=v==='expense'?'':'none';
+  $('fReasonLabel').textContent={leave:'请假事由',expense:'报销说明',other:'审批事由'}[v];
+}
+function submitWf(){
+  const type=$('wfType').value,reason=$('wfReason').value.trim(),u=me();
+  if(!reason){toast('请填写详细说明','err');return;}
+  let title,detail;
+  if(type==='leave'){
+    const s=$('wfStart').value,e=$('wfEnd').value;
+    if(!s||!e){toast('请选择请假起止日期','err');return;}
+    if(e<s){toast('结束日期不能早于开始日期','err');return;}
+    const lt=$('wfLeaveType').value;
+    const days=Math.round((new Date(e)-new Date(s))/864e5)+1;
+    title='请假申请 · '+lt+' '+days+' 天';detail=lt+' · '+s+' ~ '+e;
+  }else if(type==='expense'){
+    const a=parseFloat($('wfAmount').value);
+    if(!a||a<=0){toast('请输入正确的报销金额','err');return;}
+    title='报销申请 · ¥'+a.toLocaleString('zh-CN',{minimumFractionDigits:2});
+    detail=$('wfCat').value+' · 金额 ¥'+a.toFixed(2);
+  }else{
+    title='通用审批 · '+reason.slice(0,16)+(reason.length>16?'…':'');
+    detail=reason.slice(0,40);
+  }
+  S.workflow.unshift({id:++S.seq,type,title,detail,reason,applicant:u.name,dept:u.dept,time:fmtDate(new Date())+' '+fmtTime(new Date()),status:'pending'});
+  save();closeSubmit();
+  $('wfReason').value='';$('wfAmount').value='';
+  renderWorkflow();renderHome();updDot();
+  toast('申请已提交，等待审批人处理','ok');
+  if(S.page!=='workflow')go('workflow');
+}
+function decide(id,st){
+  const w=S.workflow.find(x=>x.id===id);if(!w)return;
+  let opinion='';
+  if(st==='rejected'){
+    opinion=prompt('请输入拒绝原因：','');
+    if(opinion===null)return;
+  }else{opinion=prompt('审批意见（可留空）：','同意。')||'';}
+  w.status=st;w.opinion=opinion.trim();save();
+  renderWorkflow();renderHome();updDot();
+  toast('已'+(st==='approved'?'同意':'拒绝')+'：'+w.title,st==='approved'?'ok':'err');
+}
+function wfItem(w,ops){
+  const t=TYPE[w.type],st=ST[w.status];
+  return '<div class="wf-item">'+
+    '<div class="wf-head"><span class="tag '+t.c+'">'+t.i+' '+t.n+'</span><span class="tag '+st.c+'">'+st.n+'</span><span class="wf-title" style="margin-left:auto">'+esc(w.title)+'</span></div>'+
+    '<div class="wf-meta">👤 '+esc(w.applicant)+'（'+esc(w.dept)+'） · 🕒 '+esc(w.time)+'<br>📌 '+esc(w.detail)+'<br>💬 '+esc(w.reason)+'</div>'+
+    (w.opinion?'<div class="wf-meta" style="margin-top:5px">🖊️ 审批意见：'+esc(w.opinion)+'</div>':'')+
+    (ops?'<div class="wf-ops">'+ops+'</div>':'')+'</div>';
+}
+function renderWorkflow(){
+  const mgr=isMgr();
+  // 待我审批
+  $('approveCard').style.display=mgr?'':'none';
+  if(mgr){
+    $('approveTitle').textContent='待我审批（'+pendingList().length+'）';
+    const list=pendingList();
+    $('approveList').innerHTML=list.length?list.map(w=>wfItem(w,
+      '<button class="btn approve" onclick="decide('+w.id+',\'approved\')">✅ 同意</button>'+
+      '<button class="btn reject" onclick="decide('+w.id+',\'rejected\')">❌ 拒绝</button>')).join('')
+      :'<div class="empty"><span class="e-ico">🎉</span>暂无待办申请，一切已处理完毕</div>';
+  }
+  // 我的/全部申请
+  const filters=[['all',mgr?'全部申请':'我的申请'],['pending','待审批'],['approved','已同意'],['rejected','已拒绝']];
+  $('wfFilters').innerHTML=filters.map(f=>'<button class="btn sm '+(wfFilter===f[0]?'primary':'ghost')+'" onclick="wfFilter=\''+f[0]+'\';renderWorkflow()">'+f[1]+'</button>').join('');
+  $('mineTitle').textContent=mgr?'申请列表（全部成员）':'我的申请记录';
+  let list=mgr?S.workflow:S.workflow.filter(w=>w.applicant===me().name);
+  if(wfFilter!=='all')list=list.filter(w=>w.status===wfFilter);
+  $('mineList').innerHTML=list.length?list.map(w=>wfItem(w,'')).join('')
+    :'<div class="empty"><span class="e-ico">📄</span>暂无相关申请记录<br>点击上方"提交新申请"发起流程</div>';
+}
+
+/* ================= 通知公告 ================= */
+function publishNotice(){
+  const t=$('nTitle').value.trim(),b=$('nBody').value.trim();
+  if(!t){toast('请输入公告标题','err');return;}
+  if(!b){toast('请输入公告内容','err');return;}
+  if($('nPin').checked)S.notices.forEach(n=>n.pin=false);
+  S.notices.unshift({id:Date.now(),title:t,body:b,author:me().name+'（管理员）',time:fmtDate(new Date())+' '+fmtTime(new Date()),pin:$('nPin').checked});
+  save();$('nTitle').value='';$('nBody').value='';$('nPin').checked=false;
+  renderNotice();renderHome();toast('公告发布成功，全员可见','ok');
+}
+function delNotice(id){
+  if(!confirm('确定删除这条公告吗？'))return;
+  S.notices=S.notices.filter(n=>n.id!==id);save();
+  renderNotice();renderHome();toast('公告已删除','ok');
+}
+function renderNotice(){
+  $('noticeFormCard').style.display=isAdmin()?'':'none';
+  const list=[...S.notices].sort((a,b)=>(b.pin?1:0)-(a.pin?1:0)||b.id-a.id);
+  $('noticeList').innerHTML=list.length?list.map(n=>
+    '<div class="notice'+(n.pin?' pin':'')+'"><h4>'+(n.pin?'🔥 ':'') +esc(n.title)+
+    (isAdmin()?'<button class="del-btn" onclick="delNotice('+n.id+')">删除</button>':'')+'</h4>'+
+    '<p>'+esc(n.body)+'</p>'+
+    '<div class="n-meta"><span>👤 '+esc(n.author)+'</span><span>🕒 '+esc(n.time)+'</span>'+(n.pin?'<span>⭐ 置顶</span>':'')+'</div></div>').join('')
+    :'<div class="card"><div class="empty"><span class="e-ico">📢</span>暂无公告</div></div>';
+}
+
+/* ================= 工作台 ================= */
+function renderHome(){
+  const u=me(),m=u.name,rec=S.attendance[m]||{},nowD=fmtDate(new Date());
+  const t=rec[nowD]||{in:'',out:''};
+  const done=S.workflow.filter(w=>w.applicant===m&&w.status!=='pending').length;
+  const pend=pendingList().length;
+  const stat=[
+    {i:'⏰',bg:'#eff6ff',c:'#2563eb',n:t.in||'未打卡',l:'今日上班打卡'+(t.out?' · 下班 '+t.out:'')},
+    {i:'📝',bg:'#fef3c7',c:'#d97706',n:isAdmin()?S.workflow.length:done,l:isAdmin()?'累计申请总数':'我已完成的审批'},
+    {i:'📋',bg:'#fee2e2',c:'#dc2626',n:isMgr()?pend:'—',l:isMgr()?'待我审批':'切换经理身份可审批'},
+    {i:'📢',bg:'#ecfdf5',c:'#059669',n:S.notices.length,l:'公司公告总数'}
+  ];
+  $('statGrid').innerHTML=stat.map(s=>'<div class="stat"><div class="s-ico" style="background:'+s.bg+';color:'+s.c+'">'+s.i+'</div><div><div class="s-num">'+esc(String(s.n))+'</div><div class="s-lab">'+s.l+'</div></div></div>').join('');
+  $('qsApprove').style.display=isMgr()?'':'none';
+  $('qsNotice').style.display=isAdmin()?'':'none';
+  // 动态
+  let feed='';
+  S.notices.slice(0,2).forEach(n=>feed+='<div class="wf-item" style="cursor:pointer" onclick="go(\'notice\')"><div class="wf-head"><span class="tag other">📢 公告</span><span class="wf-title">'+(n.pin?'🔥 ':'')+esc(n.title)+'</span></div><div class="wf-meta">'+esc(n.author)+' · '+esc(n.time)+'</div></div>');
+  S.workflow.slice(0,3).forEach(w=>feed+='<div class="wf-item" onclick="go(\'workflow\')"><div class="wf-head"><span class="tag '+ST[w.status].c+'">'+ST[w.status].n+'</span><span class="wf-title">'+esc(w.title)+'</span></div><div class="wf-meta">'+esc(w.applicant)+' · '+esc(w.time)+'</div></div>');
+  $('homeFeed').innerHTML=feed||'<div class="empty"><span class="e-ico">📭</span>暂无动态</div>';
+}
+
+/* ================= 时钟 & 启动 ================= */
+function tick(){
+  const n=new Date();
+  $('liveClock').textContent=fmtTime(n);
+  $('liveDate').textContent=n.getFullYear()+' 年 '+(n.getMonth()+1)+' 月 '+n.getDate()+' 日 '+WD[n.getDay()];
+  $('topDate').textContent=n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate())+' '+WD[n.getDay()]+' '+fmtTime(n);
+}
+function renderAll(){
+  renderAttendance();renderWorkflow();renderNotice();renderHome();updDot();
+}
+function init(){
+  load();
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.toggle('active',b.dataset.role===S.role));
+  const u=me();$('chipName').textContent=u.label+' · '+u.name;$('chipAvatar').textContent=u.av;
+  $('submitMask').addEventListener('click',e=>{if(e.target===$('submitMask'))closeSubmit();});
+  tick();setInterval(tick,1000);
+  renderAll();
+  const p=['home','attendance','workflow','notice'].includes(S.page)?S.page:'home';
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.page===p));
+  document.querySelectorAll('.page').forEach(s=>s.classList.toggle('show',s.id==='page-'+p));
+  if(p==='workflow')markSeen();
+  // 跨标签页实时同步
+  window.addEventListener('storage',e=>{if(e.key===KEY){load();renderAll();}});
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
